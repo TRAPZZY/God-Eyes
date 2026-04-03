@@ -26,8 +26,14 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
 
-    # Database
-    DATABASE_URL: str = "postgresql://godeyes:godeyes_secure_password_2024@localhost:5432/godeyes"
+    # Database (auto-detects SQLite if no DATABASE_URL provided)
+    DATABASE_URL: str = ""
+
+    @property
+    def database_url(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return "sqlite:///./data/godeyes.db"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

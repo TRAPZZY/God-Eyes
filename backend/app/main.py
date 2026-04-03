@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
     os.makedirs(os.path.join(settings.UPLOAD_DIR, "timelapse"), exist_ok=True)
     os.makedirs(os.path.join(settings.UPLOAD_DIR, "reports"), exist_ok=True)
     os.makedirs(os.path.join(settings.UPLOAD_DIR, "heatmaps"), exist_ok=True)
+    os.makedirs("data", exist_ok=True)
+    from app.database import engine, Base, is_sqlite
+    if is_sqlite:
+        logger.info("SQLite mode: creating tables...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("SQLite tables created")
     scheduler.start()
     logger.info("God Eyes platform started successfully")
 

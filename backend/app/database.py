@@ -5,26 +5,38 @@ Database Connection Module
 Creator: Trapzzy
 Contact: traphubs@outlook.com
 
-Handles SQLAlchemy engine creation, session management,
-and connection pooling for production-grade database operations.
+Auto-detects SQLite (for single-server/free tier) or PostgreSQL (for production).
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_size=20,
-    max_overflow=40,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-)
+db_url = settings.database_url
+is_sqlite = db_url.startswith("sqlite")
+
+if is_sqlite:
+    engine = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False},
+    )
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+else:
+    engine = create_engine(
+        db_url,
+        pool_size=20,
+        max_overflow=40,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 
