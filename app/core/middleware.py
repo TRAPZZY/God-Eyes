@@ -36,7 +36,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.mapbox.com https://api.tiles.mapbox.com https://events.mapbox.com https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://api.mapbox.com https://api.tiles.mapbox.com https://*.mapbox.com; connect-src 'self' https://api.mapbox.com https://api.tiles.mapbox.com https://events.mapbox.com https://*.mapbox.com; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval';"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
         return response
