@@ -4,7 +4,6 @@ services:
     env: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: free
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -23,8 +22,6 @@ services:
         generateValue: true
       - key: DEBUG
         value: "false"
-      - key: CORS_ORIGINS
-        value: '["https://godeyes-frontend.onrender.com"]'
 
   - type: web
     name: godeyes-frontend
@@ -32,7 +29,7 @@ services:
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
-    plan: free
+    autoDeploy: true
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -48,10 +45,8 @@ services:
 
   - type: redis
     name: godeyes-redis
-    plan: free
     ipAllowList: []
 
 databases:
   - name: godeyes-db
     databaseName: godeyes
-    plan: free
