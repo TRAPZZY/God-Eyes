@@ -19,8 +19,13 @@ import signal
 import logging
 from app.config import get_settings
 from app.api import api_router
-from app.database import engine, Base
-from app.workers.scheduler import scheduler
+from app.database import engine, Base, is_sqlite
+try:
+    from app.workers.scheduler import scheduler
+    HAS_SCHEDULER = True
+except Exception:
+    HAS_SCHEDULER = False
+    scheduler = None
 from app.core.rate_limiter import RateLimitMiddleware
 from app.core.middleware import (
     RequestLoggingMiddleware,
@@ -41,36 +46,29 @@ logger = logging.getLogger("godeyes")
 async def lifespan(app: FastAPI):
     logger.info("Starting God Eyes platform...")
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "captures"), exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "diffs"), exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "ndvi"), exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "exports"), exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "timelapse"), exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "reports"), exist_ok=True)
-    os.makedirs(os.path.join(settings.UPLOAD_DIR, "heatmaps"), exist_ok=True)
+    for subdir in ["captures", "diffs", "ndvi", "exports", "timelapse", "reports", "heatmaps"]:
+        os.makedirs(os.path.join(settings.UPLOAD_DIR, subdir), exist_ok=True)
     os.makedirs("data", exist_ok=True)
-    from app.database import engine, Base, is_sqlite
     if is_sqlite:
         logger.info("SQLite mode: creating tables...")
         Base.metadata.create_all(bind=engine)
         logger.info("SQLite tables created")
-    scheduler.start()
+    if HAS_SCHEDULER and scheduler:
+        try:
+            scheduler.start()
+            logger.info("Scheduler started")
+        except Exception as e:
+            logger.warning(f"Scheduler failed to start (expected in serverless): {e}")
     logger.info("God Eyes platform started successfully")
-
-    shutdown_event = app.state.shutdown_event
-
-    def handle_signal(signum, frame):
-        logger.info(f"Received signal {signum}, initiating graceful shutdown...")
-        shutdown_event.set()
-
-    signal.signal(signal.SIGINT, handle_signal)
-    signal.signal(signal.SIGTERM, handle_signal)
 
     yield
 
-    logger.info("Shutting down God Eyes platform...")
-    scheduler.stop()
-    logger.info("God Eyes platform stopped")
+    if HAS_SCHEDULER and scheduler:
+        try:
+            scheduler.stop()
+        except Exception:
+            pass
+    logger.info("God Eyes platform shut down")
 
 
 app = FastAPI(
