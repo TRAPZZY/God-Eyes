@@ -1,0 +1,68 @@
+# God Eyes - .gitignore
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (keep directory structure, ignore files)
+backend/uploads/captures/*
+!backend/uploads/captures/.gitkeep
+backend/uploads/diffs/*
+!backend/uploads/diffs/.gitkeep
+backend/uploads/ndvi/*
+!backend/uploads/ndvi/.gitkeep
+backend/uploads/exports/*
+!backend/uploads/exports/.gitkeep
+backend/uploads/timelapses/*
+!backend/uploads/timelapses/.gitkeep
+backend/uploads/reports/*
+!backend/uploads/reports/.gitkeep
+backend/uploads/heatmaps/*
+!backend/uploads/heatmaps/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Docker
+docker-compose.override.yml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# TypeScript
+*.tsbuildinfo
