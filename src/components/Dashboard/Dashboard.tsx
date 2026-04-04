@@ -18,9 +18,11 @@ import {
   apiGetLocations,
   apiGetChanges,
   apiHealthCheck,
+  type BackendLocation,
 } from '../../services/api'
 import type { DashboardStats } from '../../types'
-import type { BackendLocation, BackendChange } from '../../services/api'
+import type { BackendChange } from '../../services/api'
+import { Download, Upload } from 'lucide-react'
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -97,6 +99,57 @@ export default function Dashboard() {
     low: 'bg-green-500/10 border-green-500/20 text-green-400',
   }
 
+  const handleExportCSV = () => {
+    if (locations.length === 0) return
+    const headers = ['Name', 'Latitude', 'Longitude', 'Address', 'Monitored', 'Created']
+    const rows = locations.map((loc) => [
+      loc.name,
+      loc.latitude.toString(),
+      loc.longitude.toString(),
+      loc.address || '',
+      loc.is_monitored ? 'Yes' : 'No',
+      new Date(loc.created_at).toLocaleDateString(),
+    ])
+    const csv = [headers.join(','), ...rows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `godeyes_locations_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const text = await file.text()
+    const lines = text.split('\n').filter((l) => l.trim())
+    if (lines.length < 2) return
+    const headers = lines[0].split(',').map((h) => h.replace(/"/g, '').trim())
+    const nameIdx = headers.findIndex((h) => h.toLowerCase().includes('name'))
+    const latIdx = headers.findIndex((h) => h.toLowerCase().includes('lat'))
+    const lngIdx = headers.findIndex((h) => h.toLowerCase().includes('lng') || h.toLowerCase().includes('lon'))
+    const addrIdx = headers.findIndex((h) => h.toLowerCase().includes('address'))
+    if (nameIdx < 0 || latIdx < 0 || lngIdx < 0) return
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map((v) => v.replace(/"/g, '').trim())
+      try {
+        const { apiCreateLocation } = await import('../../services/api')
+        await apiCreateLocation({
+          name: values[nameIdx],
+          latitude: parseFloat(values[latIdx]),
+          longitude: parseFloat(values[lngIdx]),
+          address: addrIdx >= 0 ? values[addrIdx] : undefined,
+        })
+      } catch {
+        console.error(`Failed to import row ${i}`)
+      }
+    }
+    loadData()
+    e.target.value = ''
+  }
+
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
@@ -116,13 +169,29 @@ export default function Dashboard() {
             Last sync: {stats?.last_sync ? new Date(stats.last_sync).toLocaleString() : 'N/A'}
           </p>
         </div>
-        <button
-          onClick={loadData}
-          className="px-4 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={locations.length === 0}
+            className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+            title="Export locations as CSV"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+          <label className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm cursor-pointer">
+            <Upload className="w-4 h-4" />
+            Import
+            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+          </label>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
