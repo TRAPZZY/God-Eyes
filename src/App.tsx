@@ -8,6 +8,7 @@ import Register from './components/Auth/Register'
 import Monitor from './components/Monitor/Monitor'
 import Timeline from './components/Timeline/Timeline'
 import Analysis from './components/Analysis/Analysis'
+import Settings from './components/Settings/Settings'
 import Sidebar from './components/Dashboard/Sidebar'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ export default function App() {
                     <Route path="monitor" element={<Monitor />} />
                     <Route path="timeline" element={<Timeline />} />
                     <Route path="analysis" element={<Analysis />} />
+                    <Route path="settings" element={<Settings />} />
                   </Routes>
                 </main>
               </div>

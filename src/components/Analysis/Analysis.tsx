@@ -48,6 +48,8 @@ export default function Analysis() {
 
   useEffect(() => {
     loadData()
+    const interval = setInterval(loadData, 30000)
+    return () => clearInterval(interval)
   }, [selectedLocation])
 
   const loadData = async () => {

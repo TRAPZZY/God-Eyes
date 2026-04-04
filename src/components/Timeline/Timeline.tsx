@@ -22,6 +22,8 @@ export default function Timeline() {
 
   useEffect(() => {
     loadData()
+    const interval = setInterval(loadData, 60000)
+    return () => clearInterval(interval)
   }, [selectedLocation])
 
   const loadData = async () => {
