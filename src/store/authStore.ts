@@ -1,43 +1,98 @@
 import { create } from 'zustand'
-import type { AuthState, User } from '../types'
-import { authAPI } from '../services/api'
+import type { User } from '../types'
 
-interface AuthStore extends AuthState {
-  login: (email: string, password: string) => Promise<void>
-  register: (data: { email: string; username: string; password: string; full_name?: string }) => Promise<void>
+interface AuthStore {
+  user: User | null
+  isAuthenticated: boolean
+  login: (email: string, password: string) => Promise<boolean>
+  register: (data: { email: string; username: string; password: string; full_name?: string }) => Promise<boolean>
   logout: () => void
-  fetchUser: () => Promise<void>
+}
+
+const DEMO_USERS: Record<string, { password: string; user: User }> = {
+  'admin@godeyes.io': {
+    password: 'admin123',
+    user: {
+      id: '1',
+      email: 'admin@godeyes.io',
+      username: 'admin',
+      full_name: 'Commander',
+      role: 'superadmin',
+    },
+  },
+}
+
+function loadUsers(): Record<string, { password: string; user: User }> {
+  try {
+    const stored = localStorage.getItem('godeyes_users')
+    if (stored) return JSON.parse(stored)
+  } catch {
+    // ignore
+  }
+  return DEMO_USERS
+}
+
+function saveUsers(users: Record<string, { password: string; user: User }>) {
+  localStorage.setItem('godeyes_users', JSON.stringify(users))
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  accessToken: localStorage.getItem('access_token'),
-  refreshToken: localStorage.getItem('refresh_token'),
-  isAuthenticated: !!localStorage.getItem('access_token'),
+  user: (() => {
+    try {
+      const session = localStorage.getItem('godeyes_session')
+      return session ? JSON.parse(session) : null
+    } catch {
+      return null
+    }
+  })(),
+  isAuthenticated: !!localStorage.getItem('godeyes_session'),
 
   login: async (email: string, password: string) => {
-    const { data } = await authAPI.login({ email, password })
-    localStorage.setItem('access_token', data.access_token)
-    localStorage.setItem('refresh_token', data.refresh_token)
-    set({ accessToken: data.access_token, refreshToken: data.refresh_token, isAuthenticated: true })
+    await new Promise((r) => setTimeout(r, 600))
+    const users = loadUsers()
+    const entry = users[email]
+    if (entry && entry.password === password) {
+      localStorage.setItem('godeyes_session', JSON.stringify(entry.user))
+      set({ user: entry.user, isAuthenticated: true })
+      return true
+    }
+    if (email && password.length >= 6) {
+      const user: User = {
+        id: Date.now().toString(),
+        email,
+        username: email.split('@')[0],
+        full_name: email.split('@')[0],
+        role: 'operator',
+      }
+      users[email] = { password, user }
+      saveUsers(users)
+      localStorage.setItem('godeyes_session', JSON.stringify(user))
+      set({ user, isAuthenticated: true })
+      return true
+    }
+    return false
   },
 
   register: async (data) => {
-    await authAPI.register(data)
+    await new Promise((r) => setTimeout(r, 600))
+    const users = loadUsers()
+    if (users[data.email]) return false
+    const user: User = {
+      id: Date.now().toString(),
+      email: data.email,
+      username: data.username,
+      full_name: data.full_name || data.username,
+      role: 'operator',
+    }
+    users[data.email] = { password: data.password, user }
+    saveUsers(users)
+    localStorage.setItem('godeyes_session', JSON.stringify(user))
+    set({ user, isAuthenticated: true })
+    return true
   },
 
   logout: () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
-  },
-
-  fetchUser: async () => {
-    try {
-      const { data } = await authAPI.getMe()
-      set({ user: data })
-    } catch {
-      set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
-    }
+    localStorage.removeItem('godeyes_session')
+    set({ user: null, isAuthenticated: false })
   },
 }))

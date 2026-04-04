@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useThemeStore } from './store/themeStore'
@@ -16,13 +16,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const fetchUser = useAuthStore((s) => s.fetchUser)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const setTheme = useThemeStore((s) => s.setTheme)
-
-  useEffect(() => {
-    if (isAuthenticated) fetchUser()
-  }, [isAuthenticated, fetchUser])
 
   useEffect(() => {
     const saved = localStorage.getItem('godeyes-theme') as 'dark' | 'light' | null
@@ -40,9 +35,9 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-dark)' }}>
+              <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <Sidebar />
-                <main className="flex-1 overflow-auto">
+                <main className="flex-1 overflow-auto relative">
                   <Routes>
                     <Route index element={<Dashboard />} />
                     <Route path="monitor" element={<Monitor />} />

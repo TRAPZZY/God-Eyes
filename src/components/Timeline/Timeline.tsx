@@ -1,13 +1,272 @@
+import { useEffect, useState } from 'react'
+import {
+  Clock,
+  Satellite,
+  Cloud,
+  Eye,
+  Filter,
+  ChevronDown,
+  Calendar,
+  MapPin,
+  ArrowRight,
+  CheckCircle,
+  AlertCircle,
+} from 'lucide-react'
+import { mockAPI } from '../../services/api'
+import type { Capture, SentinelDate } from '../../types'
+
 export default function Timeline() {
+  const [captures, setCaptures] = useState<Capture[]>([])
+  const [sentinelDates, setSentinelDates] = useState<SentinelDate[]>([])
+  const [selectedLocation, setSelectedLocation] = useState<string>('all')
+  const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'captures' | 'sentinel'>('captures')
+  const [severityFilter, setSeverityFilter] = useState<string>('all')
+
+  useEffect(() => {
+    loadData()
+  }, [selectedLocation])
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const [capturesData, sentinelData] = await Promise.all([
+        selectedLocation === 'all' ? mockAPI.getCaptures() : mockAPI.getCaptures(selectedLocation),
+        mockAPI.getSentinelDates(),
+      ])
+      setCaptures(capturesData)
+      setSentinelDates(sentinelData)
+    } catch (err) {
+      console.error('Failed to load timeline data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const uniqueLocations = Array.from(new Set(captures.map((c) => c.location_id)))
+
+  const filteredCaptures = captures
+    .filter((c) => selectedLocation === 'all' || c.location_id === selectedLocation)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+  const qualityBadge = (cloudCoverage: number) => {
+    if (cloudCoverage <= 5) return { label: 'Excellent', color: 'text-green-400 bg-green-400/10 border-green-400/20' }
+    if (cloudCoverage <= 15) return { label: 'Good', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20' }
+    if (cloudCoverage <= 30) return { label: 'Fair', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' }
+    return { label: 'Poor', color: 'text-red-400 bg-red-400/10 border-red-400/20' }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full" />
+            <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
+          </div>
+          <p className="text-sm font-mono text-gray-500 uppercase tracking-wider">Loading capture history...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Timeline</h1>
-        <p className="text-gray-400">Capture history and change detection log</p>
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-bold text-white">Capture Timeline</h1>
+            <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] font-mono text-blue-400 uppercase tracking-wider">
+              {filteredCaptures.length} captures
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 font-mono">Satellite imagery capture history and Sentinel-2 archive</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-800/50 border border-gray-700/50 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('captures')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === 'captures' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <Satellite className="w-3.5 h-3.5" />
+              Captures
+            </button>
+            <button
+              onClick={() => setViewMode('sentinel')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === 'sentinel' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Sentinel-2
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="bg-card rounded-xl border border-gray-700 p-12 text-center">
-        <p className="text-gray-400">Timeline view -- select a location from the Monitor panel to view capture history</p>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">Location:</span>
+        </div>
+        <select
+          value={selectedLocation}
+          onChange={(e) => setSelectedLocation(e.target.value)}
+          className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono"
+        >
+          <option value="all">All Sites</option>
+          {uniqueLocations.map((locId) => {
+            const loc = captures.find((c) => c.location_id === locId)
+            return loc ? (
+              <option key={locId} value={locId}>
+                {loc.location_name}
+              </option>
+            ) : null
+          })}
+        </select>
       </div>
+
+      {/* Capture Timeline */}
+      {viewMode === 'captures' ? (
+        <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-cyan-400" />
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Capture Log</h2>
+            </div>
+          </div>
+
+          {filteredCaptures.length === 0 ? (
+            <div className="p-12 text-center">
+              <Satellite className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+              <p className="text-sm text-gray-500">No captures found for selected filters</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800/30">
+              {filteredCaptures.map((capture, index) => {
+                const quality = qualityBadge(capture.cloud_coverage)
+                return (
+                  <div
+                    key={capture.id}
+                    className="px-5 py-4 hover:bg-gray-800/20 transition-colors group"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Timeline indicator */}
+                      <div className="relative flex-shrink-0 mt-1">
+                        <div className="w-3 h-3 rounded-full bg-blue-500/30 border border-blue-500/50" />
+                        {index < filteredCaptures.length - 1 && (
+                          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-px h-8 bg-gray-800" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                            <span className="text-sm font-medium text-white">{capture.location_name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${quality.color}`}>
+                              {quality.label}
+                            </span>
+                            <span className="text-xs text-gray-500 font-mono">{capture.source}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-2">
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span className="font-mono">
+                              {new Date(capture.timestamp).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="font-mono">
+                              {new Date(capture.timestamp).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <Cloud className="w-3.5 h-3.5" />
+                            <span className="font-mono">{capture.cloud_coverage}% clouds</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="font-mono">{capture.resolution}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <ArrowRight className="w-4 h-4 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Sentinel-2 Archive */
+        <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-purple-400" />
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Sentinel-2 Archive</h2>
+            </div>
+            <span className="text-xs font-mono text-gray-500">{sentinelDates.length} dates available</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-5">
+            {sentinelDates.map((date, i) => {
+              const qualityColor =
+                date.quality === 'high'
+                  ? 'border-green-500/30 bg-green-500/5'
+                  : date.quality === 'medium'
+                  ? 'border-yellow-500/30 bg-yellow-500/5'
+                  : 'border-red-500/30 bg-red-500/5'
+
+              const dotColor =
+                date.quality === 'high' ? 'bg-green-400' : date.quality === 'medium' ? 'bg-yellow-400' : 'bg-red-400'
+
+              return (
+                <div
+                  key={i}
+                  className={`p-3 rounded-lg border ${qualityColor} hover:border-gray-600/50 transition-colors cursor-pointer`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+                    <span className="text-xs font-mono text-gray-300">
+                      {new Date(date.date).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 font-mono">{date.cloud_coverage}% clouds</span>
+                    <span className={`text-[10px] font-mono uppercase ${
+                      date.quality === 'high' ? 'text-green-400' : date.quality === 'medium' ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {date.quality}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

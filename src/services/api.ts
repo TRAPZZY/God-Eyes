@@ -1,268 +1,205 @@
-import axios from 'axios'
+import type {
+  DashboardStats,
+  Location,
+  Capture,
+  ChangeDetection,
+  MonitoringSchedule,
+  SentinelDate,
+  SystemStatus,
+  AnalysisResult,
+} from '../types'
 
-const API_URL = import.meta.env.VITE_API_URL || ''
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const api = axios.create({
-  baseURL: `${API_URL}/api/v1`,
-  headers: {
-    'Content-Type': 'application/json',
+const MOCK_LOCATIONS: Location[] = [
+  {
+    id: 'loc-001',
+    name: 'Site Alpha - Northern Perimeter',
+    latitude: 38.8977,
+    longitude: -77.0365,
+    address: 'Washington, DC',
+    is_monitored: true,
+    status: 'active',
+    last_capture: '2026-04-03T08:15:00Z',
+    capture_count: 1247,
+    created_at: '2025-11-12T00:00:00Z',
   },
-})
+  {
+    id: 'loc-002',
+    name: 'Site Bravo - Eastern Corridor',
+    latitude: 40.7128,
+    longitude: -74.006,
+    address: 'New York, NY',
+    is_monitored: true,
+    status: 'active',
+    last_capture: '2026-04-03T07:45:00Z',
+    capture_count: 892,
+    created_at: '2025-12-01T00:00:00Z',
+  },
+  {
+    id: 'loc-003',
+    name: 'Site Charlie - Western Outpost',
+    latitude: 34.0522,
+    longitude: -118.2437,
+    address: 'Los Angeles, CA',
+    is_monitored: true,
+    status: 'alert',
+    last_capture: '2026-04-03T06:30:00Z',
+    capture_count: 634,
+    created_at: '2026-01-15T00:00:00Z',
+  },
+  {
+    id: 'loc-004',
+    name: 'Site Delta - Southern Watch',
+    latitude: 29.7604,
+    longitude: -95.3698,
+    address: 'Houston, TX',
+    is_monitored: false,
+    status: 'inactive',
+    last_capture: '2026-04-01T14:00:00Z',
+    capture_count: 211,
+    created_at: '2026-02-20T00:00:00Z',
+  },
+  {
+    id: 'loc-005',
+    name: 'Site Echo - Central Hub',
+    latitude: 41.8781,
+    longitude: -87.6298,
+    address: 'Chicago, IL',
+    is_monitored: true,
+    status: 'active',
+    last_capture: '2026-04-03T09:00:00Z',
+    capture_count: 1583,
+    created_at: '2025-10-05T00:00:00Z',
+  },
+]
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+const MOCK_CAPTURES: Capture[] = [
+  { id: 'cap-001', location_id: 'loc-001', location_name: 'Site Alpha', timestamp: '2026-04-03T08:15:00Z', resolution: '0.5m', cloud_coverage: 2, source: 'Sentinel-2A', thumbnail_url: '' },
+  { id: 'cap-002', location_id: 'loc-001', location_name: 'Site Alpha', timestamp: '2026-04-02T08:10:00Z', resolution: '0.5m', cloud_coverage: 5, source: 'Sentinel-2B', thumbnail_url: '' },
+  { id: 'cap-003', location_id: 'loc-002', location_name: 'Site Bravo', timestamp: '2026-04-03T07:45:00Z', resolution: '1.0m', cloud_coverage: 12, source: 'Sentinel-2A', thumbnail_url: '' },
+  { id: 'cap-004', location_id: 'loc-003', location_name: 'Site Charlie', timestamp: '2026-04-03T06:30:00Z', resolution: '0.5m', cloud_coverage: 0, source: 'Sentinel-2B', thumbnail_url: '' },
+  { id: 'cap-005', location_id: 'loc-005', location_name: 'Site Echo', timestamp: '2026-04-03T09:00:00Z', resolution: '0.5m', cloud_coverage: 8, source: 'Sentinel-2A', thumbnail_url: '' },
+  { id: 'cap-006', location_id: 'loc-001', location_name: 'Site Alpha', timestamp: '2026-04-01T08:05:00Z', resolution: '1.0m', cloud_coverage: 15, source: 'Sentinel-2A', thumbnail_url: '' },
+  { id: 'cap-007', location_id: 'loc-002', location_name: 'Site Bravo', timestamp: '2026-04-02T07:40:00Z', resolution: '0.5m', cloud_coverage: 3, source: 'Sentinel-2B', thumbnail_url: '' },
+  { id: 'cap-008', location_id: 'loc-003', location_name: 'Site Charlie', timestamp: '2026-04-02T06:25:00Z', resolution: '1.0m', cloud_coverage: 22, source: 'Sentinel-2A', thumbnail_url: '' },
+]
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          const { data } = await api.post('/auth/refresh', {
-            refresh_token: refreshToken,
-          })
-          localStorage.setItem('access_token', data.access_token)
-          localStorage.setItem('refresh_token', data.refresh_token)
-          originalRequest.headers.Authorization = `Bearer ${data.access_token}`
-          return api(originalRequest)
-        } catch {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          window.location.href = '/login'
-        }
-      }
+const MOCK_CHANGES: ChangeDetection[] = [
+  { id: 'chg-001', location_id: 'loc-003', location_name: 'Site Charlie', severity: 'critical', score: 94, description: 'New construction detected - 3 structures', type: 'construction', detected_at: '2026-04-03T06:30:00Z', status: 'new' },
+  { id: 'chg-002', location_id: 'loc-001', location_name: 'Site Alpha', severity: 'high', score: 78, description: 'Vehicle movement pattern change', type: 'movement', detected_at: '2026-04-03T08:15:00Z', status: 'new' },
+  { id: 'chg-003', location_id: 'loc-002', location_name: 'Site Bravo', severity: 'medium', score: 45, description: 'Vegetation density decrease 12%', type: 'vegetation', detected_at: '2026-04-02T07:40:00Z', status: 'reviewed' },
+  { id: 'chg-004', location_id: 'loc-005', location_name: 'Site Echo', severity: 'low', score: 18, description: 'Minor surface water variation', type: 'environmental', detected_at: '2026-04-03T09:00:00Z', status: 'dismissed' },
+  { id: 'chg-005', location_id: 'loc-003', location_name: 'Site Charlie', severity: 'high', score: 82, description: 'Road expansion detected - 2.3km', type: 'infrastructure', detected_at: '2026-04-02T06:25:00Z', status: 'reviewed' },
+  { id: 'chg-006', location_id: 'loc-001', location_name: 'Site Alpha', severity: 'medium', score: 52, description: 'Perimeter fence modification', type: 'construction', detected_at: '2026-04-01T08:05:00Z', status: 'reviewed' },
+]
+
+const MOCK_SCHEDULES: MonitoringSchedule[] = [
+  { id: 'sch-001', location_id: 'loc-001', location_name: 'Site Alpha', frequency: 'daily', resolution: '0.5m', is_active: true, next_capture: '2026-04-04T08:00:00Z', last_capture: '2026-04-03T08:15:00Z', total_captures: 1247 },
+  { id: 'sch-002', location_id: 'loc-002', location_name: 'Site Bravo', frequency: 'daily', resolution: '1.0m', is_active: true, next_capture: '2026-04-04T07:30:00Z', last_capture: '2026-04-03T07:45:00Z', total_captures: 892 },
+  { id: 'sch-003', location_id: 'loc-003', location_name: 'Site Charlie', frequency: 'hourly', resolution: '0.5m', is_active: true, next_capture: '2026-04-03T10:00:00Z', last_capture: '2026-04-03T09:00:00Z', total_captures: 634 },
+  { id: 'sch-004', location_id: 'loc-005', location_name: 'Site Echo', frequency: 'weekly', resolution: '0.5m', is_active: true, next_capture: '2026-04-07T09:00:00Z', last_capture: '2026-04-03T09:00:00Z', total_captures: 1583 },
+  { id: 'sch-005', location_id: 'loc-004', location_name: 'Site Delta', frequency: 'monthly', resolution: '1.0m', is_active: false, next_capture: 'N/A', last_capture: '2026-04-01T14:00:00Z', total_captures: 211 },
+]
+
+const MOCK_SENTINEL_DATES: SentinelDate[] = [
+  { date: '2026-04-03T08:15:00Z', cloud_coverage: 2, quality: 'high' },
+  { date: '2026-04-01T08:05:00Z', cloud_coverage: 15, quality: 'medium' },
+  { date: '2026-03-29T08:00:00Z', cloud_coverage: 0, quality: 'high' },
+  { date: '2026-03-27T07:55:00Z', cloud_coverage: 45, quality: 'low' },
+  { date: '2026-03-25T07:50:00Z', cloud_coverage: 5, quality: 'high' },
+  { date: '2026-03-23T07:45:00Z', cloud_coverage: 8, quality: 'high' },
+  { date: '2026-03-21T07:40:00Z', cloud_coverage: 32, quality: 'medium' },
+  { date: '2026-03-19T07:35:00Z', cloud_coverage: 0, quality: 'high' },
+  { date: '2026-03-17T07:30:00Z', cloud_coverage: 18, quality: 'medium' },
+  { date: '2026-03-15T07:25:00Z', cloud_coverage: 3, quality: 'high' },
+]
+
+const MOCK_SYSTEM_STATUS: SystemStatus[] = [
+  { service: 'Satellite Uplink', status: 'online', latency: '12ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'Sentinel-2A Feed', status: 'online', latency: '45ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'Sentinel-2B Feed', status: 'online', latency: '52ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'AI Analysis Engine', status: 'online', latency: '120ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'Change Detection', status: 'online', latency: '89ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'Mapbox Tile Server', status: 'online', latency: '23ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'Data Storage', status: 'online', latency: '8ms', last_check: '2026-04-03T09:00:00Z' },
+  { service: 'Alert Pipeline', status: 'degraded', latency: '340ms', last_check: '2026-04-03T09:00:00Z' },
+]
+
+const MOCK_ANALYSIS: AnalysisResult = {
+  land_use: { urban: 34.2, vegetation: 28.7, water: 12.4, bare_soil: 8.1, agriculture: 11.3, other: 5.3 },
+  dominant_type: 'urban',
+  vegetation_index: 0.42,
+  urban_density: 0.67,
+  water_coverage: 12.4,
+  change_trend: 'increasing',
+  confidence: 94.7,
+  analyzed_at: '2026-04-03T09:00:00Z',
+}
+
+export const mockAPI = {
+  async getDashboardStats(): Promise<DashboardStats> {
+    await delay(400)
+    return {
+      total_locations: MOCK_LOCATIONS.length,
+      monitored_locations: MOCK_LOCATIONS.filter((l) => l.is_monitored).length,
+      total_captures: MOCK_LOCATIONS.reduce((s, l) => s + l.capture_count, 0),
+      total_changes: MOCK_CHANGES.length,
+      high_severity_changes: MOCK_CHANGES.filter((c) => c.severity === 'high' || c.severity === 'critical').length,
+      active_alerts: 3,
+      system_uptime: '99.97%',
+      last_sync: '2026-04-03T09:00:00Z',
     }
-    return Promise.reject(error)
-  }
-)
-
-export const authAPI = {
-  register: (data: { email: string; username: string; password: string; full_name?: string }) =>
-    api.post('/auth/register', data),
-  login: (data: { email: string; password: string }) =>
-    api.post('/auth/login', data),
-  getMe: () => api.get('/auth/me'),
-  changePassword: (data: { current_password: string; new_password: string }) =>
-    api.post('/auth/change-password', data),
-}
-
-export const locationAPI = {
-  list: (params?: { skip?: number; limit?: number; monitored_only?: boolean }) =>
-    api.get('/locations/', { params }),
-  get: (id: string) => api.get(`/locations/${id}`),
-  create: (data: { name: string; latitude: number; longitude: number; address?: string; zoom_level?: number }) =>
-    api.post('/locations/', data),
-  update: (id: string, data: Record<string, unknown>) =>
-    api.put(`/locations/${id}`, data),
-  delete: (id: string) => api.delete(`/locations/${id}`),
-  geocode: (address: string) => api.get('/locations/geocode', { params: { address } }),
-  autocomplete: (q: string, limit = 5) => api.get('/locations/search/autocomplete', { params: { q, limit } }),
-  getCaptures: (id: string) => api.get(`/locations/${id}/captures`),
-  reverseGeocode: (id: string) => api.get(`/locations/${id}/reverse-geocode`),
-  createGeofence: (locationId: string, data: { name: string; coordinates: string; alert_on_change?: boolean }) =>
-    api.post(`/locations/${locationId}/geofences`, data),
-  createAnnotation: (locationId: string, data: { coordinates: string; note?: string; annotation_type?: string }) =>
-    api.post(`/locations/${locationId}/annotations`, data),
-  getGeofenceCoverage: (locationId: string) =>
-    api.get(`/geofencing/coverage/${locationId}`),
-  createCircularGeofence: (locationId: string, data: { latitude: number; longitude: number; radius_km: number; name: string; alert_on_change?: boolean; num_points?: number }) =>
-    api.post('/geofencing/circular-geofence', null, { params: { location_id: locationId, ...data } }),
-  checkPoint: (locationId: string, latitude: number, longitude: number) =>
-    api.post('/geofencing/check-point', null, { params: { location_id: locationId, latitude, longitude } }),
-  calculateDistance: (locationId: string, lat1: number, lon1: number, lat2: number, lon2: number) =>
-    api.get(`/geofencing/distance/${locationId}`, { params: { lat1, lon1, lat2, lon2 } }),
-  deleteGeofence: (geofenceId: string) =>
-    api.delete(`/geofencing/${geofenceId}`),
-  updateGeofence: (geofenceId: string, data: { name?: string; alert_on_change?: boolean; is_active?: boolean }) =>
-    api.put(`/geofencing/${geofenceId}`, null, { params: data }),
-}
-
-export const captureAPI = {
-  create: (data: { location_id: string; resolution?: string; style?: string }) =>
-    api.post('/captures/', data),
-  get: (id: string) => api.get(`/captures/${id}`),
-  download: (id: string) => api.get(`/captures/${id}/download`, { responseType: 'blob' }),
-  getHistory: (locationId: string, params?: { page?: number; per_page?: number }) =>
-    api.get(`/captures/location/${locationId}/history`, { params }),
-  getChanges: (locationId: string, severity?: string) =>
-    api.get(`/captures/location/${locationId}/changes`, { params: { severity } }),
-  delete: (id: string) => api.delete(`/captures/${id}`),
-  getStaticMapUrl: (params: { longitude: number; latitude: number; zoom?: number; style?: string; resolution?: string }) =>
-    api.get('/captures/static-map-url', { params }),
-}
-
-export const monitoringAPI = {
-  listSchedules: (active_only = false) => api.get('/monitoring/schedules', { params: { active_only } }),
-  createSchedule: (data: { location_id: string; frequency?: string; capture_resolution?: string; capture_style?: string }) =>
-    api.post('/monitoring/schedules', data),
-  updateSchedule: (id: string, data: Record<string, unknown>) =>
-    api.put(`/monitoring/schedules/${id}`, data),
-  deleteSchedule: (id: string) => api.delete(`/monitoring/schedules/${id}`),
-  triggerCapture: (scheduleId: string) =>
-    api.post(`/monitoring/schedules/${scheduleId}/trigger`),
-  listAlerts: (active_only = false) => api.get('/monitoring/alerts', { params: { active_only } }),
-  createAlert: (data: { location_id: string; rule_type: string; name: string; notification_channel: string; notification_target: string }) =>
-    api.post('/monitoring/alerts', data),
-  updateAlert: (id: string, data: Record<string, unknown>) =>
-    api.put(`/monitoring/alerts/${id}`, data),
-  deleteAlert: (id: string) => api.delete(`/monitoring/alerts/${id}`),
-}
-
-export const analysisAPI = {
-  compare: (before_capture_id: string, after_capture_id: string) =>
-    api.post('/analysis/compare', null, { params: { before_capture_id, after_capture_id } }),
-  getSummary: (locationId: string) => api.get(`/analysis/summary/${locationId}`),
-  getSentinelDates: (locationId: string, params?: { start_date?: string; end_date?: string; max_cloud_coverage?: number }) =>
-    api.get(`/analysis/sentinel-dates/${locationId}`, { params }),
-  triggerSentinel: (locationId: string, date?: string) =>
-    api.post(`/analysis/sentinel-capture/${locationId}`, null, { params: { date } }),
-  getNDVI: (locationId: string, date?: string) =>
-    api.get(`/analysis/ndvi/${locationId}`, { params: { date }, responseType: 'blob' }),
-  getDiffImage: (changeId: string) =>
-    api.get(`/analysis/diff/${changeId}`, { responseType: 'blob' }),
-  getDashboardStats: () => api.get('/analysis/dashboard-stats'),
-  getMonitoringStatus: () => api.get('/analysis/monitoring/status'),
-}
-
-export const weatherAPI = {
-  getCurrent: (locationId: string) =>
-    api.get(`/intelligence/weather/current/${locationId}`),
-  getForecast: (locationId: string, days = 5) =>
-    api.get(`/intelligence/weather/forecast/${locationId}`, { params: { days } }),
-  getUV: (locationId: string) =>
-    api.get(`/intelligence/weather/uv/${locationId}`),
-  getAirQuality: (locationId: string) =>
-    api.get(`/intelligence/weather/air-quality/${locationId}`),
-  getWeatherCameras: (locationId: string, radiusKm = 50) =>
-    api.get(`/intelligence/weather/cameras/${locationId}`, { params: { radius_km: radiusKm } }),
-}
-
-export const cameraAPI = {
-  getCameras: (locationId: string, radiusKm = 50, limit = 20) =>
-    api.get(`/intelligence/cameras/${locationId}`, { params: { radius_km: radiusKm, limit } }),
-  getCameraImage: (cameraId: string, source = 'openweathermap') =>
-    api.get(`/intelligence/cameras/${cameraId}/image`, { params: { source }, responseType: 'blob' }),
-  getCameraHistory: (cameraId: string, source = 'windy') =>
-    api.get(`/intelligence/cameras/${cameraId}/history`, { params: { source } }),
-}
-
-export const batchAPI = {
-  importCSV: (file: File, skipGeocoding = false) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/intelligence/batch/import', formData, {
-      params: { skip_geocoding: skipGeocoding },
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
   },
-  downloadTemplate: () =>
-    api.get('/intelligence/batch/template', { responseType: 'blob' }),
-  validateCSV: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/intelligence/batch/validate', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+
+  async getLocations(): Promise<Location[]> {
+    await delay(300)
+    return MOCK_LOCATIONS
+  },
+
+  async getCaptures(locationId?: string): Promise<Capture[]> {
+    await delay(300)
+    if (locationId) return MOCK_CAPTURES.filter((c) => c.location_id === locationId)
+    return MOCK_CAPTURES
+  },
+
+  async getChanges(locationId?: string): Promise<ChangeDetection[]> {
+    await delay(300)
+    if (locationId) return MOCK_CHANGES.filter((c) => c.location_id === locationId)
+    return MOCK_CHANGES
+  },
+
+  async getSchedules(): Promise<MonitoringSchedule[]> {
+    await delay(300)
+    return MOCK_SCHEDULES
+  },
+
+  async getSentinelDates(): Promise<SentinelDate[]> {
+    await delay(300)
+    return MOCK_SENTINEL_DATES
+  },
+
+  async getSystemStatus(): Promise<SystemStatus[]> {
+    await delay(300)
+    return MOCK_SYSTEM_STATUS
+  },
+
+  async getAnalysis(): Promise<AnalysisResult> {
+    await delay(400)
+    return MOCK_ANALYSIS
+  },
+
+  async getRecentActivity(): Promise<Array<{ id: string; type: string; message: string; timestamp: string; severity: string }>> {
+    await delay(200)
+    return [
+      { id: 'act-001', type: 'capture', message: 'Satellite capture completed for Site Alpha', timestamp: '2026-04-03T08:15:00Z', severity: 'info' },
+      { id: 'act-002', type: 'alert', message: 'CRITICAL: New construction detected at Site Charlie', timestamp: '2026-04-03T06:30:00Z', severity: 'critical' },
+      { id: 'act-003', type: 'change', message: 'High severity change: Vehicle movement at Site Alpha', timestamp: '2026-04-03T08:15:00Z', severity: 'high' },
+      { id: 'act-004', type: 'system', message: 'Alert pipeline latency spike detected', timestamp: '2026-04-03T07:00:00Z', severity: 'warning' },
+      { id: 'act-005', type: 'capture', message: 'Sentinel-2B pass completed for Site Bravo', timestamp: '2026-04-03T07:45:00Z', severity: 'info' },
+      { id: 'act-006', type: 'change', message: 'Medium severity: Vegetation decrease at Site Bravo', timestamp: '2026-04-02T07:40:00Z', severity: 'medium' },
+      { id: 'act-007', type: 'system', message: 'Weekly maintenance window completed successfully', timestamp: '2026-04-02T03:00:00Z', severity: 'info' },
+      { id: 'act-008', type: 'capture', message: 'High-resolution capture completed for Site Echo', timestamp: '2026-04-03T09:00:00Z', severity: 'info' },
+    ]
   },
 }
-
-export const exportAPI = {
-  exportGeoJSON: (locationIds?: string[], includeGeofences = true) =>
-    api.get('/intelligence/export/geojson', {
-      params: { location_ids: locationIds?.join(','), include_geofences: includeGeofences },
-      responseType: 'blob',
-    }),
-  importGeoJSON: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/intelligence/import/geojson', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-  exportKML: (locationIds?: string[], includeGeofences = true) =>
-    api.get('/intelligence/export/kml', {
-      params: { location_ids: locationIds?.join(','), include_geofences: includeGeofences },
-      responseType: 'blob',
-    }),
-  importKML: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/intelligence/import/kml', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-  exportGPX: (locationIds?: string[]) =>
-    api.get('/intelligence/export/gpx', {
-      params: { location_ids: locationIds?.join(',') },
-      responseType: 'blob',
-    }),
-  importGPX: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/intelligence/import/gpx', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-  autoDetectImport: (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    return api.post('/intelligence/import/auto-detect', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  },
-}
-
-export const aiAPI = {
-  analyzeLandUse: (params: { location_id?: string; capture_id?: string }) =>
-    api.post('/intelligence/ai/land-use', null, { params }),
-  detectObjects: (params: { location_id?: string; capture_id?: string }) =>
-    api.post('/intelligence/ai/object-detection', null, { params }),
-  analyzeQuality: (params: { location_id?: string; capture_id?: string }) =>
-    api.post('/intelligence/ai/image-quality', null, { params }),
-  analyzeVegetation: (params: { location_id?: string; capture_id?: string }) =>
-    api.post('/intelligence/ai/vegetation-index', null, { params }),
-}
-
-export const timelapseAPI = {
-  generate: (data: { location_id: string; style?: string; fps?: number; duration_days?: number }) =>
-    api.post('/intelligence/timelapse/generate', null, {
-      params: {
-        location_id: data.location_id,
-        style: data.style || 'gif',
-        fps: data.fps || 5,
-        duration_days: data.duration_days || 30,
-      },
-    }),
-}
-
-export const reportAPI = {
-  generate: (data: { location_id: string; format?: string; date_range?: string }) =>
-    api.get(`/intelligence/report/${data.location_id}`, {
-      params: {
-        format: data.format || 'html',
-        date_range: data.date_range,
-      },
-    }),
-}
-
-export const heatmapAPI = {
-  generate: (locationId: string, params?: { width?: number; height?: number; radius?: number; days?: number }) =>
-    api.get(`/intelligence/heatmap/${locationId}`, {
-      params: {
-        width: params?.width || 800,
-        height: params?.height || 600,
-        radius: params?.radius || 40,
-        days: params?.days || 90,
-      },
-    }),
-}
-
-export default api
