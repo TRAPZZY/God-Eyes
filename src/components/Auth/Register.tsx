@@ -11,10 +11,8 @@ export default function Register() {
     confirmPassword: '',
     full_name: '',
   })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const register = useAuthStore((s) => s.register)
+  const { register, isLoading, error } = useAuthStore()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -23,35 +21,21 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (form.password !== form.confirmPassword) {
-      setError('Access codes do not match')
       return
     }
     if (form.password.length < 8) {
-      setError('Access code must be at least 8 characters')
       return
     }
 
-    setLoading(true)
-    try {
-      const success = await register({
-        email: form.email,
-        username: form.username,
-        password: form.password,
-        full_name: form.full_name || undefined,
-      })
-      if (success) {
-        navigate('/')
-      } else {
-        setError('Registration failed. Credentials may already exist in the system.')
-      }
-    } catch {
-      setError('Registration failed. System error.')
-    } finally {
-      setLoading(false)
-    }
+    const success = await register({
+      email: form.email,
+      username: form.username,
+      password: form.password,
+      full_name: form.full_name || undefined,
+    })
+    if (success) navigate('/')
   }
 
   return (
@@ -174,10 +158,10 @@ export default function Register() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg font-semibold hover:from-cyan-500 hover:to-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 active:scale-[0.98]"
             >
-              {loading ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Processing...

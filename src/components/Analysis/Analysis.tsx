@@ -10,15 +10,19 @@ import {
   Leaf,
   Droplets,
   Building2,
-  Mountain,
   Activity,
-  MapPin,
   Eye,
-  Filter,
   RefreshCw,
+  MapPin,
 } from 'lucide-react'
-import { mockAPI } from '../../services/api'
-import type { AnalysisResult, ChangeDetection, SentinelDate, MonitoringSchedule } from '../../types'
+import {
+  apiGetLocations,
+  apiGetChanges,
+  apiGetSchedules,
+  type BackendLocation,
+  type BackendChange,
+  type BackendSchedule,
+} from '../../services/api'
 import {
   BarChart,
   Bar,
@@ -35,54 +39,46 @@ import {
 } from 'recharts'
 
 export default function Analysis() {
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
-  const [changes, setChanges] = useState<ChangeDetection[]>([])
-  const [sentinelDates, setSentinelDates] = useState<SentinelDate[]>([])
-  const [schedules, setSchedules] = useState<MonitoringSchedule[]>([])
+  const [locations, setLocations] = useState<BackendLocation[]>([])
+  const [changes, setChanges] = useState<BackendChange[]>([])
+  const [schedules, setSchedules] = useState<BackendSchedule[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string>('all')
-  const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setMounted(true)
     loadData()
-  }, [])
+  }, [selectedLocation])
 
   const loadData = async () => {
     setLoading(true)
+    setError(null)
     try {
-      const [analysisData, changesData, sentinelData, schedulesData] = await Promise.all([
-        mockAPI.getAnalysis(),
-        mockAPI.getChanges(),
-        mockAPI.getSentinelDates(),
-        mockAPI.getSchedules(),
+      const [locsData, changesData, schedulesData] = await Promise.all([
+        apiGetLocations(),
+        apiGetChanges().catch(() => []),
+        apiGetSchedules().catch(() => []),
       ])
-      setAnalysis(analysisData)
+      setLocations(locsData)
       setChanges(changesData)
-      setSentinelDates(sentinelData)
       setSchedules(schedulesData)
-    } catch (err) {
-      console.error('Failed to load analysis data:', err)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load analysis data'
+      setError(message)
+      console.error('Analysis load error:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const landUseData = analysis
-    ? Object.entries(analysis.land_use).map(([key, value]) => ({
-        name: key.replace('_', ' ').toUpperCase(),
-        value,
-      }))
-    : []
+  const getLocationName = (locationId: string) => {
+    const loc = locations.find((l) => l.id === locationId)
+    return loc ? loc.name : locationId.slice(0, 8)
+  }
 
-  const changeTrendData = [
-    { month: 'Nov', changes: 12 },
-    { month: 'Dec', changes: 18 },
-    { month: 'Jan', changes: 24 },
-    { month: 'Feb', changes: 15 },
-    { month: 'Mar', changes: 32 },
-    { month: 'Apr', changes: 28 },
-  ]
+  const totalCaptures = schedules.reduce((sum, s) => sum + s.total_captures, 0)
+  const monitoredCount = locations.filter((l) => l.is_monitored).length
+  const highSeverity = changes.filter((c) => c.severity === 'high' || c.severity === 'critical').length
 
   const severityData = [
     { name: 'Critical', value: changes.filter((c) => c.severity === 'critical').length, color: '#ef4444' },
@@ -91,7 +87,7 @@ export default function Analysis() {
     { name: 'Low', value: changes.filter((c) => c.severity === 'low').length, color: '#22c55e' },
   ]
 
-  const landUseColors = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#06b6d4', '#6b7280']
+  const changeTrendData = computeChangeTrend(changes)
 
   const severityColors: Record<string, string> = {
     critical: 'bg-red-500/10 border-red-500/20 text-red-400',
@@ -100,7 +96,7 @@ export default function Analysis() {
     low: 'bg-green-500/10 border-green-500/20 text-green-400',
   }
 
-  if (loading && !analysis) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -114,12 +110,25 @@ export default function Analysis() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-sm font-mono text-red-400 mb-4">{error}</p>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      className={`p-6 space-y-6 max-w-[1600px] mx-auto transition-all duration-500 ${
-        mounted ? 'opacity-100' : 'opacity-0'
-      }`}
-    >
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -132,6 +141,18 @@ export default function Analysis() {
           <p className="text-sm text-gray-500 font-mono">AI-powered change detection and land use classification</p>
         </div>
         <div className="flex items-center gap-2">
+          <select
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono"
+          >
+            <option value="all">All Sites</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
           <button
             onClick={loadData}
             className="px-4 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm"
@@ -142,106 +163,73 @@ export default function Analysis() {
         </div>
       </div>
 
-      {/* AI Analysis Summary Cards */}
-      {analysis && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <AnalysisCard
-            icon={<Brain className="w-5 h-5" />}
-            label="AI Confidence"
-            value={`${analysis.confidence}%`}
-            subtext="Classification accuracy"
-            color="text-purple-400"
-            accent="from-purple-500/20 to-purple-600/5"
-          />
-          <AnalysisCard
-            icon={<Leaf className="w-5 h-5" />}
-            label="Vegetation Index"
-            value={analysis.vegetation_index.toFixed(2)}
-            subtext="NDVI measurement"
-            color="text-green-400"
-            accent="from-green-500/20 to-green-600/5"
-          />
-          <AnalysisCard
-            icon={<Building2 className="w-5 h-5" />}
-            label="Urban Density"
-            value={`${(analysis.urban_density * 100).toFixed(0)}%`}
-            subtext="Built-up area ratio"
-            color="text-blue-400"
-            accent="from-blue-500/20 to-blue-600/5"
-          />
-          <AnalysisCard
-            icon={<Droplets className="w-5 h-5" />}
-            label="Water Coverage"
-            value={`${analysis.water_coverage}%`}
-            subtext="Surface water detection"
-            color="text-cyan-400"
-            accent="from-cyan-500/20 to-cyan-600/5"
-          />
-          <AnalysisCard
-            icon={<TrendingUp className="w-5 h-5" />}
-            label="Change Trend"
-            value={analysis.change_trend.toUpperCase()}
-            subtext="30-day trajectory"
-            color={analysis.change_trend === 'increasing' ? 'text-orange-400' : 'text-green-400'}
-            accent={analysis.change_trend === 'increasing' ? 'from-orange-500/20 to-orange-600/5' : 'from-green-500/20 to-green-600/5'}
-          />
-        </div>
-      )}
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AnalysisCard
+          icon={<MapPin className="w-5 h-5" />}
+          label="Monitored Sites"
+          value={monitoredCount.toString()}
+          subtext={`of ${locations.length} total locations`}
+          color="text-blue-400"
+          accent="from-blue-500/20 to-blue-600/5"
+        />
+        <AnalysisCard
+          icon={<Satellite className="w-5 h-5" />}
+          label="Total Captures"
+          value={totalCaptures.toString()}
+          subtext={`${schedules.length} active schedules`}
+          color="text-cyan-400"
+          accent="from-cyan-500/20 to-cyan-600/5"
+        />
+        <AnalysisCard
+          icon={<AlertTriangle className="w-5 h-5" />}
+          label="High Severity"
+          value={highSeverity.toString()}
+          subtext={`${changes.length} total changes detected`}
+          color="text-red-400"
+          accent="from-red-500/20 to-red-600/5"
+        />
+        <AnalysisCard
+          icon={<Brain className="w-5 h-5" />}
+          label="Analysis Engine"
+          value={changes.length > 0 ? 'Active' : 'Standby'}
+          subtext="Change detection operational"
+          color="text-purple-400"
+          accent="from-purple-500/20 to-purple-600/5"
+        />
+      </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Land Use Distribution */}
+        {/* Severity Distribution */}
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
-            <Target className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Land Use Classification</h2>
+            <BarChart3 className="w-4 h-4 text-orange-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Severity Distribution</h2>
           </div>
           <div className="p-5">
-            <div className="flex items-center gap-6">
-              <div className="w-48 h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={landUseData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {landUseData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={landUseColors[index % landUseColors.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#111827',
-                        border: '1px solid #1f2937',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontFamily: "'JetBrains Mono', monospace",
-                      }}
-                      formatter={(value: number) => [`${value.toFixed(1)}%`, 'Coverage']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex-1 space-y-2">
-                {landUseData.map((item, i) => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: landUseColors[i % landUseColors.length] }}
-                      />
-                      <span className="text-sm text-gray-300">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-mono text-gray-400">{item.value.toFixed(1)}%</span>
-                  </div>
-                ))}
-              </div>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={severityData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <XAxis dataKey="name" stroke="#4b5563" fontSize={10} fontFamily="'JetBrains Mono', monospace" />
+                  <YAxis stroke="#4b5563" fontSize={10} fontFamily="'JetBrains Mono', monospace" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#111827',
+                      border: '1px solid #1f2937',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {severityData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
@@ -283,50 +271,22 @@ export default function Analysis() {
         </div>
       </div>
 
-      {/* Severity Distribution + Recent Changes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Severity Distribution */}
-        <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-orange-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Severity Distribution</h2>
+      {/* Detected Changes */}
+      <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-red-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Detected Changes</h2>
           </div>
-          <div className="p-5">
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={severityData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="name" stroke="#4b5563" fontSize={10} fontFamily="'JetBrains Mono', monospace" />
-                  <YAxis stroke="#4b5563" fontSize={10} fontFamily="'JetBrains Mono', monospace" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#111827',
-                      border: '1px solid #1f2937',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {severityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          <span className="text-xs font-mono text-gray-500">{changes.length} events</span>
         </div>
-
-        {/* Recent Changes */}
-        <div className="lg:col-span-2 bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-red-400" />
-              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Detected Changes</h2>
-            </div>
-            <span className="text-xs font-mono text-gray-500">{changes.length} events</span>
+        {changes.length === 0 ? (
+          <div className="p-12 text-center">
+            <Target className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+            <p className="text-sm text-gray-500">No changes detected yet</p>
+            <p className="text-xs text-gray-600 mt-1">Changes will appear after captures are compared</p>
           </div>
+        ) : (
           <div className="divide-y divide-gray-800/30">
             {changes.map((change) => (
               <div key={change.id} className="px-5 py-3.5 hover:bg-gray-800/20 transition-colors flex items-center justify-between">
@@ -337,10 +297,10 @@ export default function Analysis() {
                     change.severity === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
                   }`} />
                   <div>
-                    <p className="text-sm font-medium text-white">{change.description}</p>
+                    <p className="text-sm font-medium text-white">{change.description || 'Change detected'}</p>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500 font-mono">{change.location_name}</span>
-                      <span className="text-xs text-gray-600 font-mono">Score: {change.score}%</span>
+                      <span className="text-xs text-gray-500 font-mono">{getLocationName(change.location_id)}</span>
+                      <span className="text-xs text-gray-600 font-mono">Score: {change.change_score}%</span>
                     </div>
                   </div>
                 </div>
@@ -355,44 +315,50 @@ export default function Analysis() {
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Sentinel-2 Archive */}
+      {/* Monitoring Schedules */}
       <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Satellite className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Sentinel-2 Archive</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Monitoring Schedules</h2>
           </div>
-          <span className="text-xs font-mono text-gray-500">{sentinelDates.length} dates available</span>
+          <span className="text-xs font-mono text-gray-500">{schedules.length} schedules</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-2 p-5">
-          {sentinelDates.slice(0, 10).map((date, i) => {
-            const qualityColor =
-              date.quality === 'high'
-                ? 'border-green-500/30 bg-green-500/5'
-                : date.quality === 'medium'
-                ? 'border-yellow-500/30 bg-yellow-500/5'
-                : 'border-red-500/30 bg-red-500/5'
-
-            const dotColor =
-              date.quality === 'high' ? 'bg-green-400' : date.quality === 'medium' ? 'bg-yellow-400' : 'bg-red-400'
-
-            return (
-              <div
-                key={i}
-                className={`p-2.5 rounded-lg border ${qualityColor} hover:border-gray-600/50 transition-colors cursor-pointer text-center`}
-              >
-                <div className={`w-2 h-2 rounded-full ${dotColor} mx-auto mb-1.5`} />
-                <p className="text-[10px] font-mono text-gray-300">
-                  {new Date(date.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </p>
-                <p className="text-[10px] text-gray-500 font-mono mt-0.5">{date.cloud_coverage}%</p>
-              </div>
-            )
-          })}
-        </div>
+        {schedules.length === 0 ? (
+          <div className="p-12 text-center">
+            <Satellite className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+            <p className="text-sm text-gray-500">No monitoring schedules configured</p>
+            <p className="text-xs text-gray-600 mt-1">Create a schedule from the Monitor tab</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-800/30">
+            {schedules.map((schedule) => {
+              const loc = locations.find((l) => l.id === schedule.location_id)
+              return (
+                <div key={schedule.id} className="px-5 py-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${schedule.is_active ? 'bg-green-400' : 'bg-gray-500'}`} />
+                    <div>
+                      <p className="text-sm font-medium text-white">{loc ? loc.name : schedule.location_id.slice(0, 8)}</p>
+                      <p className="text-xs text-gray-500 font-mono capitalize">{schedule.frequency} · {schedule.capture_resolution}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs text-gray-400 font-mono">{schedule.total_captures} captures</span>
+                    <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${
+                      schedule.is_active ? 'text-green-400 bg-green-400/10' : 'text-gray-400 bg-gray-400/10'
+                    }`}>
+                      {schedule.is_active ? 'Active' : 'Paused'}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -421,4 +387,24 @@ function AnalysisCard({
       <p className="text-[10px] text-gray-600 font-mono mt-0.5">{subtext}</p>
     </div>
   )
+}
+
+function computeChangeTrend(changes: BackendChange[]) {
+  const months: Record<string, number> = {}
+  const now = new Date()
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = d.toLocaleDateString('en-US', { month: 'short' })
+    months[key] = 0
+  }
+
+  changes.forEach((c) => {
+    const d = new Date(c.detected_at)
+    const key = d.toLocaleDateString('en-US', { month: 'short' })
+    if (months[key] !== undefined) {
+      months[key]++
+    }
+  })
+
+  return Object.entries(months).map(([month, changes]) => ({ month, changes }))
 }

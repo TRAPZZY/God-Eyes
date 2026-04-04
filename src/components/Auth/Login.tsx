@@ -4,12 +4,10 @@ import { Eye, Loader2, Shield, Zap, Globe, Crosshair } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@godeyes.io')
-  const [password, setPassword] = useState('admin123')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [mounted, setMounted] = useState(false)
-  const login = useAuthStore((s) => s.login)
+  const { login, isLoading, error } = useAuthStore()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -18,20 +16,8 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const success = await login(email, password)
-      if (success) {
-        navigate('/')
-      } else {
-        setError('Invalid credentials. Check email and password.')
-      }
-    } catch {
-      setError('Authentication failed. System error.')
-    } finally {
-      setLoading(false)
-    }
+    const success = await login(email, password)
+    if (success) navigate('/')
   }
 
   return (
@@ -118,10 +104,10 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg font-semibold hover:from-blue-500 hover:to-blue-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 active:scale-[0.98]"
             >
-              {loading ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Authenticating...
@@ -134,13 +120,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          <div className="mt-6 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-            <p className="text-xs font-mono text-gray-400 mb-1">Demo Credentials:</p>
-            <p className="text-xs font-mono text-blue-400">
-              admin@godeyes.io / admin123
-            </p>
-          </div>
 
           <p className="text-center text-gray-500 text-xs mt-6">
             New operator?{' '}

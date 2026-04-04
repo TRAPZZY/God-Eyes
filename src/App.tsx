@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useThemeStore } from './store/themeStore'
@@ -16,7 +16,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const loadUser = useAuthStore((s) => s.loadUser)
   const setTheme = useThemeStore((s) => s.setTheme)
 
   useEffect(() => {
@@ -24,7 +24,8 @@ export default function App() {
     const theme = saved || 'dark'
     document.documentElement.setAttribute('data-theme', theme)
     setTheme(theme)
-  }, [setTheme])
+    loadUser()
+  }, [setTheme, loadUser])
 
   return (
     <BrowserRouter>
