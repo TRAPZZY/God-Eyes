@@ -3,13 +3,7 @@ import { query } from '../_generated/server'
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const changes = await ctx.db
-      .query('changes')
-      .filter((q) => q.eq(q.field('userId'), identity.tokenIdentifier))
-      .collect()
+    const changes = await ctx.db.query('changes').collect()
 
     return changes
       .sort((a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime())

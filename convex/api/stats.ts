@@ -3,28 +3,10 @@ import { query } from '../_generated/server'
 export const dashboard = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const locations = await ctx.db
-      .query('locations')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .collect()
-
-    const schedules = await ctx.db
-      .query('schedules')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .collect()
-
-    const changes = await ctx.db
-      .query('changes')
-      .filter((q) => q.eq(q.field('userId'), identity.tokenIdentifier))
-      .collect()
-
-    const alerts = await ctx.db
-      .query('alertRules')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .collect()
+    const locations = await ctx.db.query('locations').collect()
+    const schedules = await ctx.db.query('schedules').collect()
+    const changes = await ctx.db.query('changes').collect()
+    const alerts = await ctx.db.query('alertRules').collect()
 
     const monitoredCount = locations.filter((l) => l.isMonitored).length
     const activeSchedules = schedules.filter((s) => s.isActive).length
@@ -35,7 +17,7 @@ export const dashboard = query({
     const uptimePercent =
       monitoredCount > 0
         ? ((activeSchedules / monitoredCount) * 100).toFixed(2)
-        : '0.00'
+        : '100.00'
 
     return {
       total_locations: locations.length,
@@ -56,7 +38,6 @@ export const health = query({
     return {
       status: 'healthy',
       service: 'God Eyes (Convex)',
-      uptime_seconds: Math.floor(process.uptime?.() ?? 0),
     }
   },
 })

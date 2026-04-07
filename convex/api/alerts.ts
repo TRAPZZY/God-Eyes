@@ -4,13 +4,7 @@ import { v } from 'convex/values'
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const alerts = await ctx.db
-      .query('alertRules')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .collect()
+    const alerts = await ctx.db.query('alertRules').collect()
 
     return alerts.map((a) => ({
       id: a._id,
@@ -39,26 +33,18 @@ export const create = mutation({
     notification_target: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const location = await ctx.db.get(args.location_id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
-      throw new Error('Location not found')
-    }
-
     const alertId = await ctx.db.insert('alertRules', {
-      userId: identity.tokenIdentifier,
+      userId: '' as any,
       locationId: args.location_id,
       ruleType: args.rule_type,
       name: args.name,
-      conditions: null,
-      threshold: null,
+      conditions: undefined,
+      threshold: undefined,
       notificationChannel: 'email',
       notificationTarget: args.notification_target,
       isActive: true,
       triggeredCount: 0,
-      lastTriggeredAt: null,
+      lastTriggeredAt: undefined,
       createdAt: Date.now(),
     })
 

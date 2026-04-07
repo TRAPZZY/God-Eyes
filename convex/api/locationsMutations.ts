@@ -12,11 +12,8 @@ export const create = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
     const locationId = await ctx.db.insert('locations', {
-      userId: identity.tokenIdentifier,
+      userId: '' as any,
       name: args.name,
       latitude: args.latitude,
       longitude: args.longitude,
@@ -45,11 +42,8 @@ export const update = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
     const location = await ctx.db.get(args.id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
+    if (!location) {
       throw new Error('Location not found')
     }
 
@@ -70,11 +64,8 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('locations') },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
     const location = await ctx.db.get(args.id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
+    if (!location) {
       throw new Error('Location not found')
     }
 
@@ -85,11 +76,8 @@ export const remove = mutation({
 export const toggleMonitor = mutation({
   args: { id: v.id('locations'), isMonitored: v.boolean() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
     const location = await ctx.db.get(args.id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
+    if (!location) {
       throw new Error('Location not found')
     }
 

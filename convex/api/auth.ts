@@ -1,49 +1,5 @@
-import { mutation, query } from '../_generated/server'
+import { query, mutation } from '../_generated/server'
 import { v } from 'convex/values'
-import { auth } from '@convex-dev/auth'
-
-export const signIn = auth.defineAuth({
-  signIn: mutation({
-    args: {
-      email: v.string(),
-      password: v.string(),
-    },
-    handler: async (ctx, args) => {
-      const user = await ctx.runQuery(auth.queryUser, { email: args.email })
-      if (!user) throw new Error('Invalid credentials')
-      return { session: user._id }
-    },
-  }),
-
-  signUp: mutation({
-    args: {
-      email: v.string(),
-      username: v.string(),
-      password: v.string(),
-      fullName: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-      const existing = await ctx.runQuery(auth.queryUser, { email: args.email })
-      if (existing) throw new Error('Email already registered')
-
-      const userId = await ctx.runMutation(auth.createUser, {
-        email: args.email,
-        name: args.username,
-        password: args.password,
-        fullName: args.fullName,
-      })
-      return { userId }
-    },
-  }),
-
-  signOut: mutation({
-    args: {},
-    handler: async (ctx) => {
-      const identity = await ctx.auth.getUserIdentity()
-      if (!identity) throw new Error('Not authenticated')
-    },
-  }),
-})
 
 export const currentUser = query({
   args: {},
@@ -65,5 +21,57 @@ export const currentUser = query({
       full_name: user.fullName ?? user.username,
       role: user.role,
     }
+  },
+})
+
+export const signIn = mutation({
+  args: {
+    email: v.string(),
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
+      .first()
+
+    if (!user) throw new Error('Invalid credentials')
+    
+    return { success: true }
+  },
+})
+
+export const signUp = mutation({
+  args: {
+    email: v.string(),
+    username: v.string(),
+    password: v.string(),
+    fullName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('users')
+      .withIndex('by_email', (q) => q.eq('email', args.email))
+      .first()
+    
+    if (existing) throw new Error('Email already registered')
+
+    const userId = await ctx.db.insert('users', {
+      email: args.email,
+      username: args.username,
+      fullName: args.fullName,
+      role: 'operator',
+      isActive: true,
+      createdAt: Date.now(),
+    })
+
+    return { userId }
+  },
+})
+
+export const signOut = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return { success: true }
   },
 })

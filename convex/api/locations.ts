@@ -4,16 +4,13 @@ import { v } from 'convex/values'
 export const list = query({
   args: { monitoredOnly: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
+    const locations = await ctx.db.query('locations').collect()
+    
+    const filtered = args.monitoredOnly 
+      ? locations.filter((l) => l.isMonitored)
+      : locations
 
-    const locations = await ctx.db
-      .query('locations')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .filter((q) => args.monitoredOnly ? q.eq('isMonitored', true) : q.eq('isMonitored', true))
-      .collect()
-
-    return locations.map((loc) => ({
+    return filtered.map((loc) => ({
       id: loc._id,
       user_id: loc.userId,
       name: loc.name,
@@ -33,13 +30,8 @@ export const list = query({
 export const get = query({
   args: { id: v.id('locations') },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
     const location = await ctx.db.get(args.id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
-      throw new Error('Location not found')
-    }
+    if (!location) return null
     return {
       id: location._id,
       user_id: location.userId,

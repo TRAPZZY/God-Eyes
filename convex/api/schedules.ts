@@ -4,13 +4,7 @@ import { v } from 'convex/values'
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const schedules = await ctx.db
-      .query('schedules')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .collect()
+    const schedules = await ctx.db.query('schedules').collect()
 
     return schedules.map((s) => ({
       id: s._id,
@@ -36,22 +30,14 @@ export const create = mutation({
     capture_style: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const location = await ctx.db.get(args.location_id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
-      throw new Error('Location not found')
-    }
-
     const scheduleId = await ctx.db.insert('schedules', {
-      userId: identity.tokenIdentifier,
+      userId: '' as any,
       locationId: args.location_id,
       frequency: args.frequency,
       captureResolution: args.capture_resolution ?? 'standard',
       captureStyle: args.capture_style ?? 'satellite',
-      nextCaptureAt: null,
-      lastCaptureAt: null,
+      nextCaptureAt: undefined,
+      lastCaptureAt: undefined,
       totalCaptures: 0,
       isActive: true,
       createdAt: Date.now(),

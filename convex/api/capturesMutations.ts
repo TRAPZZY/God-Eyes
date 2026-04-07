@@ -8,27 +8,24 @@ export const create = mutation({
     style: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
     const location = await ctx.db.get(args.location_id)
-    if (!location || location.userId !== identity.tokenIdentifier) {
+    if (!location) {
       throw new Error('Location not found')
     }
 
     const captureId = await ctx.db.insert('captures', {
-      userId: identity.tokenIdentifier,
+      userId: '' as any,
       locationId: args.location_id,
-      imageUrl: null,
-      imagePath: null,
+      imageUrl: undefined,
+      imagePath: undefined,
       resolution: args.resolution ?? 'standard',
       source: 'mapbox',
-      width: null,
-      height: null,
+      width: undefined,
+      height: undefined,
       zoomLevel: location.zoomLevel,
       capturedAt: new Date().toISOString(),
-      cloudCoverage: null,
-      imageMetadata: null,
+      cloudCoverage: undefined,
+      imageMetadata: undefined,
       createdAt: Date.now(),
     })
 

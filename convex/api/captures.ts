@@ -7,13 +7,7 @@ export const list = query({
     per_page: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const captures = await ctx.db
-      .query('captures')
-      .withIndex('by_user', (q) => q.eq('userId', identity.tokenIdentifier))
-      .collect()
+    const captures = await ctx.db.query('captures').collect()
 
     const sorted = captures.sort(
       (a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime()
@@ -48,14 +42,6 @@ export const list = query({
 export const byLocation = query({
   args: { locationId: v.id('locations') },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthorized')
-
-    const location = await ctx.db.get(args.locationId)
-    if (!location || location.userId !== identity.tokenIdentifier) {
-      throw new Error('Location not found')
-    }
-
     const captures = await ctx.db
       .query('captures')
       .withIndex('by_location', (q) => q.eq('locationId', args.locationId))
