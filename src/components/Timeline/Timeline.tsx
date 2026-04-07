@@ -9,17 +9,25 @@ import {
   MapPin,
   ArrowRight,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { apiGetLocations, apiGetCaptures, apiGetLocationCaptures, type BackendLocation, type BackendCapture } from '../../services/api'
+
+const PAGE_SIZE = 20
 
 export default function Timeline() {
   const [locations, setLocations] = useState<BackendLocation[]>([])
   const [captures, setCaptures] = useState<BackendCapture[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string>('all')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  const loadData = useCallback(async (pageNum: number) => {
     setLoading(true)
     setError(null)
     try {
@@ -28,12 +36,15 @@ export default function Timeline() {
 
       let caps: BackendCapture[] = []
       if (selectedLocation === 'all') {
-        const result = await apiGetCaptures(1, 100)
+        const result = await apiGetCaptures(pageNum, PAGE_SIZE)
         caps = result.captures
+        setTotal(result.total)
       } else {
         caps = await apiGetLocationCaptures(selectedLocation)
+        setTotal(caps.length)
       }
       setCaptures(caps)
+      setPage(pageNum)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load timeline data'
       setError(message)
@@ -44,10 +55,10 @@ export default function Timeline() {
   }, [selectedLocation])
 
   useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 60000)
+    loadData(1)
+    const interval = setInterval(() => loadData(page), 60000)
     return () => clearInterval(interval)
-  }, [loadData])
+  }, [loadData, page])
 
   const sortedCaptures = [...captures].sort(
     (a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()
@@ -87,7 +98,7 @@ export default function Timeline() {
           <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <p className="text-sm font-mono text-red-400 mb-4">{error}</p>
           <button
-            onClick={loadData}
+            onClick={() => loadData(page)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
           >
             Retry
@@ -105,7 +116,7 @@ export default function Timeline() {
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-white">Capture Timeline</h1>
             <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] font-mono text-blue-400 uppercase tracking-wider">
-              {sortedCaptures.length} captures
+              {total} total
             </span>
           </div>
           <p className="text-sm text-gray-500 font-mono">Satellite imagery capture history</p>
@@ -113,23 +124,48 @@ export default function Timeline() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">Location:</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">Location:</span>
+          </div>
+          <select
+            value={selectedLocation}
+            onChange={(e) => { setSelectedLocation(e.target.value); setPage(1); }}
+            className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono"
+          >
+            <option value="all">All Sites</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={selectedLocation}
-          onChange={(e) => setSelectedLocation(e.target.value)}
-          className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono"
-        >
-          <option value="all">All Sites</option>
-          {locations.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.name}
-            </option>
-          ))}
-        </select>
+
+        {/* Pagination */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadData(page - 1)}
+            disabled={page <= 1 || loading}
+            className="p-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-mono text-gray-400 min-w-[80px] text-center">
+            {selectedLocation === 'all' ? `Page ${page}/${totalPages} (${total})` : `${total} captures`}
+          </span>
+          <button
+            onClick={() => loadData(page + 1)}
+            disabled={page >= totalPages || loading}
+            className="p-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Next page"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Capture Timeline */}
