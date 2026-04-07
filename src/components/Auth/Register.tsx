@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Loader2, Shield, UserPlus, Crosshair } from 'lucide-react'
 import { useMutation } from 'convex/react'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -18,7 +18,7 @@ export default function Register() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const signUp = useMutation(api.auth.signUp as any)
+  const signUp = useMutation(api.auth.signUp)
 
   useEffect(() => {
     setMounted(true)

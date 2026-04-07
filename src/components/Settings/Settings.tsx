@@ -16,7 +16,7 @@ import {
   Settings as SettingsIcon,
 } from 'lucide-react'
 import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 
 export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -27,9 +27,9 @@ export default function Settings() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [passwordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const user = useQuery(api.auth.currentUser as any)
-  const health = useQuery(api.stats.health as any)
-  const signOut = useMutation(api.auth.signOut as any)
+  const user = useQuery(api.auth.currentUser)
+  const health = useQuery(api.stats.health)
+  const signOut = useMutation(api.auth.signOut)
 
   useEffect(() => {
     const interval = setInterval(() => {}, 30000)

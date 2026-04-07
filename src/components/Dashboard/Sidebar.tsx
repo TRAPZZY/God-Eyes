@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useThemeStore } from '../../store/themeStore'
 import { roleColors } from '../../constants/ui'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', section: 'Overview' },
@@ -31,8 +31,8 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const user = useQuery(api.auth.currentUser as any)
-  const signOut = useMutation(api.auth.signOut as any)
+  const user = useQuery(api.auth.currentUser)
+  const signOut = useMutation(api.auth.signOut)
   const { theme, toggleTheme } = useThemeStore()
   const [collapsed, setCollapsed] = useState(false)
 

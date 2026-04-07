@@ -12,7 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useQuery } from 'convex/react'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 import type { BackendLocation, BackendCapture } from '../../convexref'
 
 const PAGE_SIZE = 20
@@ -21,13 +21,13 @@ export default function Timeline() {
   const [selectedLocation, setSelectedLocation] = useState<string>('all')
   const [page, setPage] = useState(1)
 
-  const locations = useQuery(api.locations.list as any) as BackendLocation[] | undefined
+  const locations = useQuery(api.locations.list) as BackendLocation[] | undefined
   const capturesResult = useQuery(
-    api.captures.list as any,
+    api.captures.list,
     selectedLocation === 'all' ? { page, per_page: PAGE_SIZE } : undefined
   ) as { captures: BackendCapture[]; total: number } | undefined
   const locationCaptures = useQuery(
-    api.captures.byLocation as any,
+    api.captures.byLocation,
     selectedLocation !== 'all' ? { locationId: selectedLocation } : 'skip'
   ) as BackendCapture[] | undefined
 

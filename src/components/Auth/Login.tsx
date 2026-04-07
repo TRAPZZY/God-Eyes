@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Eye, Loader2, Shield, Zap, Globe, Crosshair } from 'lucide-react'
 import { useMutation } from 'convex/react'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -12,7 +12,7 @@ export default function Login() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const signInWithPassword = useMutation(api.auth.signIn as any)
+  const signInWithPassword = useMutation(api.auth.signIn)
 
   useEffect(() => {
     setMounted(true)

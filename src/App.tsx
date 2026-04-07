@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { useQuery } from 'convex/react'
 import { useThemeStore } from './store/themeStore'
 import { ErrorBoundary } from './components/Shared/ErrorBoundary'
-import { api } from './convexref'
+import { api } from '../convex/_generated/api'
 import Login from './components/Auth/Login'
 import Register from './components/Auth/Register'
 import Sidebar from './components/Dashboard/Sidebar'
@@ -29,7 +29,7 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const user = useQuery(api.auth.currentUser as any)
+  const user = useQuery(api.auth.currentUser)
 
   if (user === undefined) {
     return <PageLoader />

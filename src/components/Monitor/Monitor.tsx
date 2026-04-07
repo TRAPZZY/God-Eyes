@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import mapboxgl from 'mapbox-gl'
 import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 import type { BackendLocation, BackendSchedule } from '../../convexref'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || ''
@@ -29,10 +29,10 @@ export default function Monitor() {
   const [capturing, setCapturing] = useState<string | null>(null)
   const [newLocation, setNewLocation] = useState({ name: '', latitude: '', longitude: '', address: '' })
 
-  const locations = useQuery(api.locations.list as any, { monitoredOnly: false }) as BackendLocation[] | undefined
-  const schedules = useQuery(api.schedules.list as any) as BackendSchedule[] | undefined
-  const createLocation = useMutation(api.locationsMutations.create as any)
-  const createCapture = useMutation(api.capturesMutations.create as any)
+  const locations = useQuery(api.locations.list) as BackendLocation[] | undefined
+  const schedules = useQuery(api.schedules.list) as BackendSchedule[] | undefined
+  const createLocation = useMutation(api.locationsMutations.create)
+  const createCapture = useMutation(api.capturesMutations.create)
 
   const isLoading = locations === undefined || schedules === undefined
 

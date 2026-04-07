@@ -12,7 +12,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../convexref'
+import { api } from '../../../convex/_generated/api'
 import type { BackendLocation, BackendChange } from '../../convexref'
 import { severityColors } from '../../constants/ui'
 import { csvEscape } from '../../constants/csv'
@@ -20,12 +20,12 @@ import { csvEscape } from '../../constants/csv'
 export default function Dashboard() {
   const [importError, setImportError] = useState<string | null>(null)
 
-  const stats = useQuery(api.stats.dashboard as any)
-  const locations = useQuery(api.locations.list as any) as BackendLocation[] | undefined
-  const changes = useQuery(api.changes.list as any) as BackendChange[] | undefined
-  const health = useQuery(api.stats.health as any)
+  const stats = useQuery(api.stats.dashboard)
+  const locations = useQuery(api.locations.list) as BackendLocation[] | undefined
+  const changes = useQuery(api.changes.list) as BackendChange[] | undefined
+  const health = useQuery(api.stats.health)
 
-  const createLocation = useMutation(api.locationsMutations.create as any)
+  const createLocation = useMutation(api.locationsMutations.create)
 
   const isLoading = stats === undefined || locations === undefined || changes === undefined || health === undefined
 
