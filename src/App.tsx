@@ -1,8 +1,9 @@
 import { useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useAuthStore } from './store/authStore'
+import { useQuery } from 'convex/react'
 import { useThemeStore } from './store/themeStore'
 import { ErrorBoundary } from './components/Shared/ErrorBoundary'
+import { api } from './convexref'
 import Login from './components/Auth/Login'
 import Register from './components/Auth/Register'
 import Sidebar from './components/Dashboard/Sidebar'
@@ -28,14 +29,13 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const isLoading = useAuthStore((s) => s.isLoading)
+  const user = useQuery(api.auth.currentUser as any)
 
-  if (isLoading) {
+  if (user === undefined) {
     return <PageLoader />
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  return user ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 function AppLayout() {
@@ -52,7 +52,6 @@ function AppLayout() {
 }
 
 export default function App() {
-  const loadUser = useAuthStore((s) => s.loadUser)
   const setTheme = useThemeStore((s) => s.setTheme)
 
   useEffect(() => {
@@ -60,8 +59,7 @@ export default function App() {
     const theme = saved || 'dark'
     document.documentElement.setAttribute('data-theme', theme)
     setTheme(theme)
-    loadUser()
-  }, [setTheme, loadUser])
+  }, [setTheme])
 
   return (
     <BrowserRouter>

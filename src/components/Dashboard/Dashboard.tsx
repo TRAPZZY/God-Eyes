@@ -1,68 +1,35 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import {
   MapPin,
   Satellite,
   AlertTriangle,
   Activity,
   Eye,
-  RefreshCw,
   Shield,
   ChevronRight,
   Radio,
   Download,
   Upload,
 } from 'lucide-react'
-import {
-  apiGetDashboardStats,
-  apiGetLocations,
-  apiGetChanges,
-  apiHealthCheck,
-  apiCreateLocation,
-  type BackendLocation,
-  type BackendChange,
-} from '../../services/api'
-import type { DashboardStats } from '../../types'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../convexref'
+import type { BackendLocation, BackendChange } from '../../convexref'
 import { severityColors } from '../../constants/ui'
 import { csvEscape } from '../../constants/csv'
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [locations, setLocations] = useState<BackendLocation[]>([])
-  const [changes, setChanges] = useState<BackendChange[]>([])
-  const [systemHealthy, setSystemHealthy] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [statsData, locationsData, changesData, health] = await Promise.all([
-        apiGetDashboardStats(),
-        apiGetLocations(),
-        apiGetChanges().catch(() => []),
-        apiHealthCheck().catch(() => ({ status: 'degraded', service: 'God Eyes' })),
-      ])
-      setStats(statsData)
-      setLocations(locationsData)
-      setChanges(changesData.slice(0, 5))
-      setSystemHealthy(health.status === 'healthy')
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load dashboard data'
-      setError(message)
-      console.error('Dashboard load error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const stats = useQuery(api.stats.dashboard as any)
+  const locations = useQuery(api.locations.list as any) as BackendLocation[] | undefined
+  const changes = useQuery(api.changes.list as any) as BackendChange[] | undefined
+  const health = useQuery(api.stats.health as any)
 
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
-  }, [loadData])
+  const createLocation = useMutation(api.locationsMutations.create as any)
 
-  if (loading) {
+  const isLoading = stats === undefined || locations === undefined || changes === undefined || health === undefined
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -76,27 +43,10 @@ export default function Dashboard() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-sm font-mono text-red-400 mb-4">{error}</p>
-          <button
-            onClick={loadData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   const handleExportCSV = () => {
-    if (locations.length === 0) return
+    if (!locations || locations.length === 0) return
     const headers = ['Name', 'Latitude', 'Longitude', 'Address', 'Monitored', 'Created']
-    const rows = locations.map((loc) => [
+    const rows = locations.map((loc: BackendLocation) => [
       csvEscape(loc.name),
       loc.latitude.toString(),
       loc.longitude.toString(),
@@ -104,7 +54,7 @@ export default function Dashboard() {
       loc.is_monitored ? 'Yes' : 'No',
       new Date(loc.created_at).toLocaleDateString(),
     ])
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const csv = [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -117,8 +67,9 @@ export default function Dashboard() {
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setImportError(null)
     if (file.size > 5 * 1024 * 1024) {
-      setError('File too large. Maximum 5MB.')
+      setImportError('File too large. Maximum 5MB.')
       return
     }
     const text = await file.text()
@@ -133,7 +84,7 @@ export default function Dashboard() {
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map((v) => v.replace(/"/g, '').trim())
       try {
-        await apiCreateLocation({
+        await createLocation({
           name: values[nameIdx],
           latitude: parseFloat(values[latIdx]),
           longitude: parseFloat(values[lngIdx]),
@@ -143,9 +94,11 @@ export default function Dashboard() {
         console.error(`Failed to import row ${i}`)
       }
     }
-    loadData()
     e.target.value = ''
   }
+
+  const systemHealthy = health?.status === 'healthy'
+  const recentChanges = (changes || []).slice(0, 5)
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -169,7 +122,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCSV}
-            disabled={locations.length === 0}
+            disabled={!locations || locations.length === 0}
             aria-label="Export locations as CSV"
             className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm disabled:opacity-30 disabled:cursor-not-allowed"
           >
@@ -181,16 +134,14 @@ export default function Dashboard() {
             Import
             <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" aria-label="Import locations from CSV file" />
           </label>
-          <button
-            onClick={loadData}
-            aria-label="Refresh dashboard data"
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
         </div>
       </div>
+
+      {importError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          {importError}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -237,9 +188,9 @@ export default function Dashboard() {
               <Eye className="w-4 h-4 text-blue-400" />
               <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Recent Change Detections</h2>
             </div>
-            <span className="text-xs font-mono text-gray-500">{changes.length} events</span>
+            <span className="text-xs font-mono text-gray-500">{recentChanges.length} events</span>
           </div>
-          {changes.length === 0 ? (
+          {recentChanges.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <Eye className="w-8 h-8 text-gray-600 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No change detections yet</p>
@@ -247,7 +198,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="divide-y divide-gray-800/30">
-              {changes.map((change) => (
+              {recentChanges.map((change: BackendChange) => (
                 <div key={change.id} className="px-5 py-3.5 hover:bg-gray-800/20 transition-colors flex items-center gap-4">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     change.severity === 'critical' ? 'bg-red-400 animate-pulse' :
@@ -262,7 +213,7 @@ export default function Dashboard() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500 font-mono">{change.location_id?.slice(0, 8) || 'unknown'}</span>
+                      <span className="text-xs text-gray-500 font-mono">{String(change.location_id).slice(0, 8) || 'unknown'}</span>
                       <span className="text-xs text-gray-600">Score: {change.change_score}%</span>
                     </div>
                   </div>
@@ -297,9 +248,9 @@ export default function Dashboard() {
             <Radio className="w-4 h-4 text-cyan-400" />
             <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Monitored Locations</h2>
           </div>
-          <span className="text-xs font-mono text-gray-500">{locations.length} sites</span>
+          <span className="text-xs font-mono text-gray-500">{locations?.length || 0} sites</span>
         </div>
-        {locations.length === 0 ? (
+        {!locations || locations.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <MapPin className="w-8 h-8 text-gray-600 mx-auto mb-2" />
             <p className="text-sm text-gray-500">No locations configured</p>
@@ -307,7 +258,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="divide-y divide-gray-800/30">
-            {locations.map((loc) => (
+            {locations.map((loc: BackendLocation) => (
               <div key={loc.id} className="px-5 py-3.5 hover:bg-gray-800/20 transition-colors flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Loader2, Shield, UserPlus, Crosshair } from 'lucide-react'
-import { useAuthStore } from '../../store/authStore'
+import { useMutation } from 'convex/react'
+import { api } from '../../convexref'
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -12,9 +13,12 @@ export default function Register() {
     full_name: '',
   })
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
-  const { register, isLoading, error } = useAuthStore()
+  const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
+
+  const signUp = useMutation(api.auth.signUp as any)
 
   useEffect(() => {
     setMounted(true)
@@ -23,6 +27,7 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setValidationError(null)
+    setError(null)
 
     if (!form.email.includes('@')) {
       setValidationError('Invalid email address')
@@ -41,13 +46,21 @@ export default function Register() {
       return
     }
 
-    const success = await register({
-      email: form.email,
-      username: form.username,
-      password: form.password,
-      full_name: form.full_name || undefined,
-    })
-    if (success) navigate('/')
+    setLoading(true)
+    try {
+      await signUp({
+        email: form.email,
+        username: form.username,
+        password: form.password,
+        fullName: form.full_name || undefined,
+      })
+      navigate('/')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

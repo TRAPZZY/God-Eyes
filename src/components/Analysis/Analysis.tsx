@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import {
   BarChart3,
   Satellite,
@@ -7,7 +7,6 @@ import {
   Target,
   Activity,
   Eye,
-  RefreshCw,
   MapPin,
 } from 'lucide-react'
 import {
@@ -22,69 +21,36 @@ import {
   LineChart,
   Line,
 } from 'recharts'
-import {
-  apiGetLocations,
-  apiGetChanges,
-  apiGetSchedules,
-  type BackendLocation,
-  type BackendChange,
-  type BackendSchedule,
-} from '../../services/api'
+import { useQuery } from 'convex/react'
+import { api } from '../../convexref'
+import type { BackendLocation, BackendChange, BackendSchedule } from '../../convexref'
 import { severityColors } from '../../constants/ui'
 
 export default function Analysis() {
-  const [locations, setLocations] = useState<BackendLocation[]>([])
-  const [changes, setChanges] = useState<BackendChange[]>([])
-  const [schedules, setSchedules] = useState<BackendSchedule[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<string>('all')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const locations = useQuery(api.locations.list as any, { monitoredOnly: true })
+  const changes = useQuery(api.changes.list as any)
+  const schedules = useQuery(api.schedules.list as any)
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [locsData, changesData, schedulesData] = await Promise.all([
-        apiGetLocations(),
-        apiGetChanges().catch(() => []),
-        apiGetSchedules().catch(() => []),
-      ])
-      setLocations(locsData)
-      setChanges(changesData)
-      setSchedules(schedulesData)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load analysis data'
-      setError(message)
-      console.error('Analysis load error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
-  }, [loadData])
+  const isLoading = locations === undefined || changes === undefined || schedules === undefined
 
   const getLocationName = useCallback((locationId: string) => {
-    const loc = locations.find((l) => l.id === locationId)
+    const loc = (locations as BackendLocation[] | undefined)?.find((l: BackendLocation) => l.id === locationId)
     return loc ? loc.name : locationId.slice(0, 8)
   }, [locations])
 
-  const totalCaptures = useMemo(() => schedules.reduce((sum, s) => sum + s.total_captures, 0), [schedules])
-  const monitoredCount = useMemo(() => locations.filter((l) => l.is_monitored).length, [locations])
-  const highSeverity = useMemo(() => changes.filter((c) => c.severity === 'high' || c.severity === 'critical').length, [changes])
+  const totalCaptures = useMemo(() => (schedules as BackendSchedule[] | undefined)?.reduce((sum: number, s: BackendSchedule) => sum + s.total_captures, 0) ?? 0, [schedules])
+  const monitoredCount = useMemo(() => (locations as BackendLocation[] | undefined)?.filter((l: BackendLocation) => l.is_monitored).length ?? 0, [locations])
+  const highSeverity = useMemo(() => (changes as BackendChange[] | undefined)?.filter((c: BackendChange) => c.severity === 'high' || c.severity === 'critical').length ?? 0, [changes])
   const severityData = useMemo(() => [
-    { name: 'Critical', value: changes.filter((c) => c.severity === 'critical').length, color: '#ef4444' },
-    { name: 'High', value: changes.filter((c) => c.severity === 'high').length, color: '#f97316' },
-    { name: 'Medium', value: changes.filter((c) => c.severity === 'medium').length, color: '#eab308' },
-    { name: 'Low', value: changes.filter((c) => c.severity === 'low').length, color: '#22c55e' },
+    { name: 'Critical', value: (changes as BackendChange[] | undefined)?.filter((c: BackendChange) => c.severity === 'critical').length ?? 0, color: '#ef4444' },
+    { name: 'High', value: (changes as BackendChange[] | undefined)?.filter((c: BackendChange) => c.severity === 'high').length ?? 0, color: '#f97316' },
+    { name: 'Medium', value: (changes as BackendChange[] | undefined)?.filter((c: BackendChange) => c.severity === 'medium').length ?? 0, color: '#eab308' },
+    { name: 'Low', value: (changes as BackendChange[] | undefined)?.filter((c: BackendChange) => c.severity === 'low').length ?? 0, color: '#22c55e' },
   ], [changes])
 
-  const changeTrendData = useMemo(() => computeChangeTrend(changes), [changes])
+  const changeTrendData = useMemo(() => computeChangeTrend(changes ?? []), [changes])
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -98,26 +64,8 @@ export default function Analysis() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-sm font-mono text-red-400 mb-4">{error}</p>
-          <button
-            onClick={loadData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -128,37 +76,14 @@ export default function Analysis() {
           </div>
           <p className="text-sm text-gray-500 font-mono">AI-powered change detection and land use classification</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono"
-          >
-            <option value="all">All Sites</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={loadData}
-            aria-label="Refresh analysis data"
-            className="px-4 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
-        </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <AnalysisCard
           icon={<MapPin className="w-5 h-5" />}
           label="Monitored Sites"
           value={monitoredCount.toString()}
-          subtext={`of ${locations.length} total locations`}
+          subtext={`of ${locations?.length ?? 0} total locations`}
           color="text-blue-400"
           accent="from-blue-500/20 to-blue-600/5"
         />
@@ -166,7 +91,7 @@ export default function Analysis() {
           icon={<Satellite className="w-5 h-5" />}
           label="Total Captures"
           value={totalCaptures.toString()}
-          subtext={`${schedules.length} active schedules`}
+          subtext={`${schedules?.length ?? 0} active schedules`}
           color="text-cyan-400"
           accent="from-cyan-500/20 to-cyan-600/5"
         />
@@ -174,23 +99,21 @@ export default function Analysis() {
           icon={<AlertTriangle className="w-5 h-5" />}
           label="High Severity"
           value={highSeverity.toString()}
-          subtext={`${changes.length} total changes detected`}
+          subtext={`${changes?.length ?? 0} total changes detected`}
           color="text-red-400"
           accent="from-red-500/20 to-red-600/5"
         />
         <AnalysisCard
           icon={<Brain className="w-5 h-5" />}
           label="Analysis Engine"
-          value={changes.length > 0 ? 'Active' : 'Standby'}
+          value={(changes?.length ?? 0) > 0 ? 'Active' : 'Standby'}
           subtext="Change detection operational"
           color="text-purple-400"
           accent="from-purple-500/20 to-purple-600/5"
         />
       </div>
 
-      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Severity Distribution */}
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-orange-400" />
@@ -223,7 +146,6 @@ export default function Analysis() {
           </div>
         </div>
 
-        {/* Change Trend */}
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <Activity className="w-4 h-4 text-green-400" />
@@ -260,16 +182,15 @@ export default function Analysis() {
         </div>
       </div>
 
-      {/* Detected Changes */}
       <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Eye className="w-4 h-4 text-red-400" />
             <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Detected Changes</h2>
           </div>
-          <span className="text-xs font-mono text-gray-500">{changes.length} events</span>
+          <span className="text-xs font-mono text-gray-500">{changes?.length ?? 0} events</span>
         </div>
-        {changes.length === 0 ? (
+        {(!changes || changes.length === 0) ? (
           <div className="p-12 text-center">
             <Target className="w-12 h-12 text-gray-700 mx-auto mb-4" />
             <p className="text-sm text-gray-500">No changes detected yet</p>
@@ -277,7 +198,7 @@ export default function Analysis() {
           </div>
         ) : (
           <div className="divide-y divide-gray-800/30">
-            {changes.map((change) => (
+            {(changes as BackendChange[]).map((change: BackendChange) => (
               <div key={change.id} className="px-5 py-3.5 hover:bg-gray-800/20 transition-colors flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${
@@ -307,16 +228,15 @@ export default function Analysis() {
         )}
       </div>
 
-      {/* Monitoring Schedules */}
       <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Satellite className="w-4 h-4 text-cyan-400" />
             <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Monitoring Schedules</h2>
           </div>
-          <span className="text-xs font-mono text-gray-500">{schedules.length} schedules</span>
+          <span className="text-xs font-mono text-gray-500">{schedules?.length ?? 0} schedules</span>
         </div>
-        {schedules.length === 0 ? (
+        {(!schedules || schedules.length === 0) ? (
           <div className="p-12 text-center">
             <Satellite className="w-12 h-12 text-gray-700 mx-auto mb-4" />
             <p className="text-sm text-gray-500">No monitoring schedules configured</p>
@@ -324,15 +244,15 @@ export default function Analysis() {
           </div>
         ) : (
           <div className="divide-y divide-gray-800/30">
-            {schedules.map((schedule) => {
-              const loc = locations.find((l) => l.id === schedule.location_id)
+            {(schedules as BackendSchedule[]).map((schedule: BackendSchedule) => {
+              const loc = (locations as BackendLocation[] | undefined)?.find((l: BackendLocation) => l.id === schedule.location_id)
               return (
                 <div key={schedule.id} className="px-5 py-3.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${schedule.is_active ? 'bg-green-400' : 'bg-gray-500'}`} />
                     <div>
                       <p className="text-sm font-medium text-white">{loc ? loc.name : schedule.location_id.slice(0, 8)}</p>
-                      <p className="text-xs text-gray-500 font-mono capitalize">{schedule.frequency} · {schedule.capture_resolution}</p>
+                      <p className="text-xs text-gray-500 font-mono capitalize">{schedule.frequency} - {schedule.capture_resolution}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -378,7 +298,11 @@ function AnalysisCard({
   )
 }
 
-function computeChangeTrend(changes: BackendChange[]) {
+interface Change {
+  detected_at: string
+}
+
+function computeChangeTrend(changes: Change[]) {
   const months: Record<string, number> = {}
   const now = new Date()
   for (let i = 5; i >= 0; i--) {

@@ -13,95 +13,56 @@ import {
   Database,
   Clock,
   RefreshCw,
-  Copy,
   Settings as SettingsIcon,
 } from 'lucide-react'
-import { useAuthStore } from '../../store/authStore'
-import {
-  apiHealthCheck,
-  apiLogout,
-} from '../../services/api'
-import { roleColors } from '../../constants/ui'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../convexref'
 
 export default function Settings() {
-  const { user, logout } = useAuthStore()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [healthStatus, setHealthStatus] = useState<{ status: string; service: string } | null>(null)
-  const [healthLoading, setHealthLoading] = useState(false)
-  const [apiUrl] = useState(import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1')
-  const [copied, setCopied] = useState(false)
+  const [passwordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const user = useQuery(api.auth.currentUser as any)
+  const health = useQuery(api.stats.health as any)
+  const signOut = useMutation(api.auth.signOut as any)
 
   useEffect(() => {
-    checkHealth()
+    const interval = setInterval(() => {}, 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  const checkHealth = async () => {
-    setHealthLoading(true)
+  const handleSignOut = async () => {
     try {
-      const data = await apiHealthCheck()
-      setHealthStatus(data)
+      await signOut({})
     } catch {
-      setHealthStatus({ status: 'unreachable', service: 'God Eyes' })
-    } finally {
-      setHealthLoading(false)
+      // continue anyway
     }
+    window.location.href = '/login'
   }
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPasswordMsg(null)
-
-    if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'New passwords do not match' })
-      return
-    }
-    if (newPassword.length < 8) {
-      setPasswordMsg({ type: 'error', text: 'Password must be at least 8 characters' })
-      return
-    }
-
-    setPasswordLoading(true)
-    try {
-      const token = localStorage.getItem('godeyes_access_token')
-      const res = await fetch(`${apiUrl.replace('/api/v1', '')}/api/v1/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
-      })
-
-      if (res.ok) {
-        setPasswordMsg({ type: 'success', text: 'Password changed successfully' })
-        setCurrentPassword('')
-        setNewPassword('')
-        setConfirmPassword('')
-      } else {
-        const err = await res.json().catch(() => ({ detail: 'Failed to change password' }))
-        setPasswordMsg({ type: 'error', text: err.detail || 'Failed to change password' })
-      }
-    } catch {
-      setPasswordMsg({ type: 'error', text: 'Network error. Check backend connection.' })
-    } finally {
-      setPasswordLoading(false)
-    }
+  const roleColors: Record<string, string> = {
+    superadmin: 'text-red-400 bg-red-400/10 border-red-400/20',
+    admin: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    analyst: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+    operator: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
   }
 
-  const copyApiUrl = () => {
-    navigator.clipboard.writeText(apiUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  if (user === undefined) {
+    return (
+      <div className="p-6 space-y-6 max-w-[1200px] mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="relative w-12 h-12">
+            <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full" />
+            <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -126,14 +87,14 @@ export default function Settings() {
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 flex items-center justify-center">
                 <span className="text-xl font-bold text-blue-400">
-                  {user?.username?.charAt(0).toUpperCase()}
+                  {user?.username?.charAt(0).toUpperCase() || '?'}
                 </span>
               </div>
               <div>
-                <p className="text-lg font-semibold text-white">{user?.full_name || user?.username}</p>
-                <p className="text-sm text-gray-500 font-mono">{user?.email}</p>
+                <p className="text-lg font-semibold text-white">{user?.full_name || user?.username || 'Unknown'}</p>
+                <p className="text-sm text-gray-500 font-mono">{user?.email || 'No email'}</p>
                 <span className={`inline-block mt-1 text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${roleColors[user?.role || 'operator']}`}>
-                  {user?.role}
+                  {user?.role || 'operator'}
                 </span>
               </div>
             </div>
@@ -141,20 +102,20 @@ export default function Settings() {
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-800/30">
                 <span className="text-xs text-gray-500 font-mono uppercase">Operator ID</span>
-                <span className="text-xs text-gray-300 font-mono">{user?.id?.slice(0, 8)}...</span>
+                <span className="text-xs text-gray-300 font-mono">{user?.id ? String(user.id).slice(0, 8) : '—'}...</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
                 <span className="text-xs text-gray-500 font-mono uppercase">Email</span>
-                <span className="text-xs text-gray-300 font-mono">{user?.email}</span>
+                <span className="text-xs text-gray-300 font-mono">{user?.email || '—'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
                 <span className="text-xs text-gray-500 font-mono uppercase">Callsign</span>
-                <span className="text-xs text-gray-300 font-mono">{user?.username}</span>
+                <span className="text-xs text-gray-300 font-mono">{user?.username || '—'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
                 <span className="text-xs text-gray-500 font-mono uppercase">Clearance</span>
                 <span className={`text-xs font-mono uppercase ${roleColors[user?.role || 'operator']?.split(' ')[0]}`}>
-                  {user?.role}
+                  {user?.role || 'operator'}
                 </span>
               </div>
             </div>
@@ -167,7 +128,7 @@ export default function Settings() {
             <Key className="w-4 h-4 text-yellow-400" />
             <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Change Access Code</h2>
           </div>
-          <form onSubmit={handleChangePassword} className="p-5 space-y-4">
+          <div className="p-5 space-y-4">
             {passwordMsg && (
               <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
                 passwordMsg.type === 'success'
@@ -184,17 +145,17 @@ export default function Settings() {
             )}
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="settings-current-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Current Access Code
               </label>
               <div className="relative">
                 <input
+                  id="settings-current-password"
                   type={showCurrent ? 'text' : 'password'}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-10 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 font-mono text-sm"
                   placeholder="Enter current code"
-                  required
                 />
                 <button
                   type="button"
@@ -208,17 +169,17 @@ export default function Settings() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="settings-new-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 New Access Code
               </label>
               <div className="relative">
                 <input
+                  id="settings-new-password"
                   type={showNew ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-10 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 font-mono text-sm"
                   placeholder="Minimum 8 characters"
-                  required
                 />
                 <button
                   type="button"
@@ -232,17 +193,17 @@ export default function Settings() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="settings-confirm-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Confirm New Access Code
               </label>
               <div className="relative">
                 <input
+                  id="settings-confirm-password"
                   type={showConfirm ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-10 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 font-mono text-sm"
                   placeholder="Re-enter new code"
-                  required
                 />
                 <button
                   type="button"
@@ -255,24 +216,10 @@ export default function Settings() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={passwordLoading}
-              className="w-full py-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-lg font-semibold hover:from-yellow-500 hover:to-orange-500 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {passwordLoading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Shield className="w-4 h-4" />
-                  Update Access Code
-                </>
-              )}
-            </button>
-          </form>
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-400 text-xs">
+              Password changes via Convex Auth require additional setup. Use your GitHub OAuth for now.
+            </div>
+          </div>
         </div>
 
         {/* System Connection */}
@@ -285,43 +232,33 @@ export default function Settings() {
             <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${
-                  healthStatus?.status === 'healthy' ? 'bg-green-400' : 'bg-red-400 animate-pulse'
+                  health?.status === 'healthy' ? 'bg-green-400' : 'bg-red-400 animate-pulse'
                 }`} />
                 <div>
                   <p className="text-sm text-white">Backend API</p>
-                  <p className="text-xs text-gray-500 font-mono truncate max-w-[250px]">{apiUrl}</p>
+                  <p className="text-xs text-gray-500 font-mono">Convex Managed</p>
                 </div>
               </div>
-              <button
-                onClick={checkHealth}
-                disabled={healthLoading}
-                aria-label="Refresh health status"
-                className="p-1.5 text-gray-400 hover:text-white transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${healthLoading ? 'animate-spin' : ''}`} />
-              </button>
+              <RefreshCw className={`w-4 h-4 text-gray-500`} />
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between py-2 border-b border-gray-800/30">
                 <span className="text-xs text-gray-500 font-mono uppercase">Status</span>
                 <span className={`text-xs font-mono uppercase ${
-                  healthStatus?.status === 'healthy' ? 'text-green-400' : 'text-red-400'
+                  health?.status === 'healthy' ? 'text-green-400' : 'text-red-400'
                 }`}>
-                  {healthStatus?.status || 'Checking...'}
+                  {health?.status || 'Checking...'}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
                 <span className="text-xs text-gray-500 font-mono uppercase">Service</span>
-                <span className="text-xs text-gray-300 font-mono">{healthStatus?.service || '—'}</span>
+                <span className="text-xs text-gray-300 font-mono">{health?.service || '—'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
-                <span className="text-xs text-gray-500 font-mono uppercase">API Endpoint</span>
+                <span className="text-xs text-gray-500 font-mono uppercase">Backend</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-300 font-mono">{apiUrl}</span>
-                  <button onClick={copyApiUrl} aria-label={copied ? 'API URL copied' : 'Copy API URL'} className="text-gray-500 hover:text-white transition-colors">
-                    {copied ? <CheckCircle className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                  <span className="text-xs text-gray-300 font-mono">Convex Cloud</span>
                 </div>
               </div>
             </div>
@@ -339,28 +276,28 @@ export default function Settings() {
               <Database className="w-5 h-5 text-blue-400" />
               <div>
                 <p className="text-sm text-white">Database</p>
-                <p className="text-xs text-gray-500 font-mono">SQLite (local) / PostgreSQL (production)</p>
+                <p className="text-xs text-gray-500 font-mono">Convex PostgreSQL</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
               <Clock className="w-5 h-5 text-purple-400" />
               <div>
-                <p className="text-sm text-white">Scheduler</p>
-                <p className="text-xs text-gray-500 font-mono">Thread-based capture scheduler</p>
+                <p className="text-sm text-white">Authentication</p>
+                <p className="text-xs text-gray-500 font-mono">Convex Auth + GitHub OAuth</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
               <Shield className="w-5 h-5 text-green-400" />
               <div>
-                <p className="text-sm text-white">Authentication</p>
-                <p className="text-xs text-gray-500 font-mono">JWT Bearer tokens (HS256)</p>
+                <p className="text-sm text-white">Map Provider</p>
+                <p className="text-xs text-gray-500 font-mono">Mapbox GL JS + Sentinel-2</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
               <Globe className="w-5 h-5 text-cyan-400" />
               <div>
-                <p className="text-sm text-white">Map Provider</p>
-                <p className="text-xs text-gray-500 font-mono">Mapbox GL JS + Sentinel-2</p>
+                <p className="text-sm text-white">Version</p>
+                <p className="text-xs text-gray-500 font-mono">v2.0.0</p>
               </div>
             </div>
           </div>
@@ -379,7 +316,7 @@ export default function Settings() {
             <p className="text-xs text-gray-500 mt-1">Log out and clear all authentication tokens</p>
           </div>
           <button
-            onClick={() => { apiLogout(); logout(); }}
+            onClick={handleSignOut}
             aria-label="Terminate session and disconnect"
             className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors flex items-center gap-2 text-sm font-mono uppercase"
           >

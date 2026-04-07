@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation } from 'convex/react'
 import {
   LayoutDashboard,
   Satellite,
@@ -15,9 +16,9 @@ import {
   User,
   Shield,
 } from 'lucide-react'
-import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
 import { roleColors } from '../../constants/ui'
+import { api } from '../../convexref'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', section: 'Overview' },
@@ -30,13 +31,17 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
+  const user = useQuery(api.auth.currentUser as any)
+  const signOut = useMutation(api.auth.signOut as any)
   const { theme, toggleTheme } = useThemeStore()
   const [collapsed, setCollapsed] = useState(false)
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    try {
+      await signOut({})
+    } catch {
+      // ignore
+    }
     navigate('/login')
   }
 
@@ -139,9 +144,9 @@ export default function Sidebar() {
               </div>
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${roleColors[user.role] || 'text-gray-400 bg-gray-400/10 border-gray-400/20'}`}>
+              <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${roleColors.operator}`}>
                 <Shield className="w-2.5 h-2.5 inline mr-1" />
-                {user.role}
+                operator
               </span>
             </div>
           </div>

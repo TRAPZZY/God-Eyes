@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import {
   Clock,
   Satellite,
@@ -8,76 +8,33 @@ import {
   Calendar,
   MapPin,
   ArrowRight,
-  AlertTriangle,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import { apiGetLocations, apiGetCaptures, apiGetLocationCaptures, type BackendLocation, type BackendCapture } from '../../services/api'
+import { useQuery } from 'convex/react'
+import { api } from '../../convexref'
+import type { BackendLocation, BackendCapture } from '../../convexref'
 
 const PAGE_SIZE = 20
 
 export default function Timeline() {
-  const [locations, setLocations] = useState<BackendLocation[]>([])
-  const [captures, setCaptures] = useState<BackendCapture[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string>('all')
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const locations = useQuery(api.locations.list as any) as BackendLocation[] | undefined
+  const capturesResult = useQuery(
+    api.captures.list as any,
+    selectedLocation === 'all' ? { page, per_page: PAGE_SIZE } : undefined
+  ) as { captures: BackendCapture[]; total: number } | undefined
+  const locationCaptures = useQuery(
+    api.captures.byLocation as any,
+    selectedLocation !== 'all' ? { locationId: selectedLocation } : 'skip'
+  ) as BackendCapture[] | undefined
 
-  const loadData = useCallback(async (pageNum: number) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const locs = await apiGetLocations()
-      setLocations(locs)
+  const isLoading = locations === undefined || 
+    (selectedLocation === 'all' ? capturesResult === undefined : locationCaptures === undefined)
 
-      let caps: BackendCapture[] = []
-      if (selectedLocation === 'all') {
-        const result = await apiGetCaptures(pageNum, PAGE_SIZE)
-        caps = result.captures
-        setTotal(result.total)
-      } else {
-        caps = await apiGetLocationCaptures(selectedLocation)
-        setTotal(caps.length)
-      }
-      setCaptures(caps)
-      setPage(pageNum)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load timeline data'
-      setError(message)
-      console.error('Timeline load error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedLocation])
-
-  useEffect(() => {
-    loadData(1)
-    const interval = setInterval(() => loadData(page), 60000)
-    return () => clearInterval(interval)
-  }, [loadData, page])
-
-  const sortedCaptures = [...captures].sort(
-    (a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()
-  )
-
-  const qualityBadge = (cloudCoverage: number | null) => {
-    if (cloudCoverage == null) return { label: 'Unknown', color: 'text-gray-400 bg-gray-400/10 border-gray-400/20' }
-    if (cloudCoverage <= 5) return { label: 'Excellent', color: 'text-green-400 bg-green-400/10 border-green-400/20' }
-    if (cloudCoverage <= 15) return { label: 'Good', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20' }
-    if (cloudCoverage <= 30) return { label: 'Fair', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' }
-    return { label: 'Poor', color: 'text-red-400 bg-red-400/10 border-red-400/20' }
-  }
-
-  const getLocationName = (locationId: string) => {
-    const loc = locations.find((l) => l.id === locationId)
-    return loc ? loc.name : locationId.slice(0, 8)
-  }
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -91,26 +48,27 @@ export default function Timeline() {
     )
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-sm font-mono text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => loadData(page)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
+  const total = selectedLocation === 'all' ? (capturesResult?.total || 0) : (locationCaptures?.length || 0)
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const sortedCaptures = selectedLocation === 'all'
+    ? (capturesResult?.captures || []).sort((a: BackendCapture, b: BackendCapture) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
+    : (locationCaptures || []).sort((a: BackendCapture, b: BackendCapture) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
+
+  const qualityBadge = (cloudCoverage: number | null) => {
+    if (cloudCoverage == null) return { label: 'Unknown', color: 'text-gray-400 bg-gray-400/10 border-gray-400/20' }
+    if (cloudCoverage <= 5) return { label: 'Excellent', color: 'text-green-400 bg-green-400/10 border-green-400/20' }
+    if (cloudCoverage <= 15) return { label: 'Good', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20' }
+    if (cloudCoverage <= 30) return { label: 'Fair', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' }
+    return { label: 'Poor', color: 'text-red-400 bg-red-400/10 border-red-400/20' }
+  }
+
+  const getLocationName = (locationId: string) => {
+    const loc = locations?.find((l: BackendLocation) => String(l.id) === String(locationId))
+    return loc ? loc.name : String(locationId).slice(0, 8)
   }
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -123,7 +81,6 @@ export default function Timeline() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -136,19 +93,18 @@ export default function Timeline() {
             className="px-3 py-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono"
           >
             <option value="all">All Sites</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
+            {locations?.map((loc: BackendLocation) => (
+              <option key={loc.id} value={String(loc.id)}>
                 {loc.name}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Pagination */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => loadData(page - 1)}
-            disabled={page <= 1 || loading}
+            onClick={() => setPage(page - 1)}
+            disabled={page <= 1}
             className="p-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous page"
           >
@@ -158,8 +114,8 @@ export default function Timeline() {
             {selectedLocation === 'all' ? `Page ${page}/${totalPages} (${total})` : `${total} captures`}
           </span>
           <button
-            onClick={() => loadData(page + 1)}
-            disabled={page >= totalPages || loading}
+            onClick={() => setPage(page + 1)}
+            disabled={page >= totalPages}
             className="p-1.5 bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Next page"
           >
@@ -168,7 +124,6 @@ export default function Timeline() {
         </div>
       </div>
 
-      {/* Capture Timeline */}
       <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -185,7 +140,7 @@ export default function Timeline() {
           </div>
         ) : (
           <div className="divide-y divide-gray-800/30">
-            {sortedCaptures.map((capture, index) => {
+            {sortedCaptures.map((capture: BackendCapture, index: number) => {
               const quality = qualityBadge(capture.cloud_coverage)
               return (
                 <div
@@ -204,7 +159,7 @@ export default function Timeline() {
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-3.5 h-3.5 text-gray-500" />
-                          <span className="text-sm font-medium text-white">{getLocationName(capture.location_id)}</span>
+                          <span className="text-sm font-medium text-white">{getLocationName(String(capture.location_id))}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${quality.color}`}>

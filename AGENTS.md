@@ -4,21 +4,43 @@
 
 **God Eyes** - Defense-Grade Satellite Intelligence Platform
 - **Frontend:** React 18, TypeScript, Vite 6, Tailwind CSS, Mapbox GL JS, Zustand, Recharts
-- **Backend:** FastAPI (Python 3.11), SQLAlchemy, SQLite/PostgreSQL, JWT auth
-- **Deploy:** Frontend on Vercel, Backend on Railway
+- **Backend:** Convex (managed TypeScript backend + PostgreSQL)
+- **Auth:** Convex Auth with GitHub OAuth and password auth
+- **Deploy:** Frontend on Vercel, Backend on Convex Cloud
 - **Repo:** https://github.com/TRAPZZY/God-Eyes
+
+## Convex Setup (Required)
+
+The backend is now Convex. Before running locally, you must:
+
+1. **Initialize Convex:**
+   ```bash
+   npx convex dev
+   ```
+   This requires interactive login to your Convex account.
+
+2. **Set environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add:
+   VITE_CONVEX_URL=your_convex_deployment_url
+   VITE_MAPBOX_TOKEN=your_mapbox_token
+   ```
+
+3. **Update convex.json:**
+   Replace `"REPLACE_WITH_YOUR_CONVEX_TEAM_SLUG"` with your actual team slug from the Convex dashboard.
 
 ## Commands
 
 ```
 Frontend:
-  npm run dev          # Start dev server
+  npm run dev          # Start dev server (requires Convex running)
   npm run build        # Production build (tsc -b && vite build)
   npm run preview      # Preview production build
 
-Backend:
-  cd backend && python -m uvicorn app.main:app --reload --port 8000
-  cd backend && python -m pytest tests/ -v
+Convex:
+  npx convex dev       # Start Convex backend (interactive)
+  npx convex deploy   # Deploy to production
 ```
 
 ## Code Conventions

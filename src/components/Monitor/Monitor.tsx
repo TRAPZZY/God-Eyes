@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Satellite,
   MapPin,
@@ -13,7 +13,9 @@ import {
   X,
 } from 'lucide-react'
 import mapboxgl from 'mapbox-gl'
-import { apiGetLocations, apiGetSchedules, apiCreateLocation, apiTriggerCapture, type BackendLocation, type BackendSchedule } from '../../services/api'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../convexref'
+import type { BackendLocation, BackendSchedule } from '../../convexref'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -21,40 +23,29 @@ export default function Monitor() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const markersRef = useRef<mapboxgl.Marker[]>([])
-  const [locations, setLocations] = useState<BackendLocation[]>([])
-  const [schedules, setSchedules] = useState<BackendSchedule[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [capturing, setCapturing] = useState<string | null>(null)
   const [newLocation, setNewLocation] = useState({ name: '', latitude: '', longitude: '', address: '' })
 
-  const loadData = useCallback(async () => {
-    try {
-      const [locsData, schedData] = await Promise.all([
-        apiGetLocations(),
-        apiGetSchedules(),
-      ])
-      setLocations(locsData)
-      setSchedules(schedData)
-    } catch (err) {
-      console.error('Failed to load monitor data:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const locations = useQuery(api.locations.list as any, { monitoredOnly: false }) as BackendLocation[] | undefined
+  const schedules = useQuery(api.schedules.list as any) as BackendSchedule[] | undefined
+  const createLocation = useMutation(api.locationsMutations.create as any)
+  const createCapture = useMutation(api.capturesMutations.create as any)
+
+  const isLoading = locations === undefined || schedules === undefined
 
   const clearMarkers = useCallback(() => {
-    markersRef.current.forEach((m) => m.remove())
+    markersRef.current.forEach((m: mapboxgl.Marker) => m.remove())
     markersRef.current = []
   }, [])
 
   const updateMarkers = useCallback(() => {
-    if (!map.current) return
+    if (!map.current || !locations) return
     clearMarkers()
 
-    locations.forEach((loc) => {
+    locations.forEach((loc: BackendLocation) => {
       const el = document.createElement('div')
       const isSelected = loc.id === selectedLocation
       const statusColor = loc.is_monitored ? '#10b981' : '#6b7280'
@@ -108,7 +99,7 @@ export default function Monitor() {
     map.current.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right')
 
     map.current.on('load', () => {
-      if (locations.length > 0) {
+      if (locations && locations.length > 0) {
         updateMarkers()
       }
     })
@@ -120,20 +111,14 @@ export default function Monitor() {
   }, [clearMarkers, locations, selectedLocation])
 
   useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 60000)
-    return () => clearInterval(interval)
-  }, [loadData])
-
-  useEffect(() => {
-    if (map.current && locations.length > 0) {
+    if (map.current && locations && locations.length > 0) {
       updateMarkers()
     }
   }, [locations, updateMarkers])
 
   useEffect(() => {
     if (map.current && selectedLocation) {
-      const loc = locations.find((l) => l.id === selectedLocation)
+      const loc = (locations as BackendLocation[] | undefined)?.find((l: BackendLocation) => l.id === selectedLocation)
       if (loc) {
         map.current.flyTo({
           center: [loc.longitude, loc.latitude],
@@ -145,41 +130,15 @@ export default function Monitor() {
     }
   }, [selectedLocation, locations])
 
-  useEffect(() => {
-    if (map.current || !mapboxgl.accessToken) return
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current!,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-95.7129, 37.0902],
-      zoom: 3,
-      attributionControl: false,
-    })
-
-    map.current.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right')
-
-    map.current.on('load', () => {
-      if (locations.length > 0) {
-        updateMarkers()
-      }
-    })
-
-    return () => {
-      map.current?.remove()
-      map.current = null
-    }
-  }, [updateMarkers, locations])
-
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const loc = await apiCreateLocation({
+      await createLocation({
         name: newLocation.name,
         latitude: parseFloat(newLocation.latitude),
         longitude: parseFloat(newLocation.longitude),
         address: newLocation.address || undefined,
       })
-      setLocations((prev) => [...prev, loc])
       setNewLocation({ name: '', latitude: '', longitude: '', address: '' })
       setShowAddForm(false)
     } catch (err) {
@@ -190,8 +149,7 @@ export default function Monitor() {
   const handleCapture = async (locationId: string) => {
     setCapturing(locationId)
     try {
-      await apiTriggerCapture(locationId)
-      await loadData()
+      await createCapture({ location_id: locationId })
     } catch (err) {
       console.error('Capture failed:', err)
     } finally {
@@ -199,16 +157,16 @@ export default function Monitor() {
     }
   }
 
-  const filteredLocations = locations.filter(
-    (loc) =>
+  const filteredLocations = (locations as BackendLocation[] | undefined)?.filter(
+    (loc: BackendLocation) =>
       loc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (loc.address && loc.address.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
+  ) ?? []
 
-  const selectedLocData = locations.find((l) => l.id === selectedLocation)
-  const selectedSchedule = schedules.find((s) => s.location_id === selectedLocation)
+  const selectedLocData = (locations as BackendLocation[] | undefined)?.find((l: BackendLocation) => l.id === selectedLocation)
+  const selectedSchedule = (schedules as BackendSchedule[] | undefined)?.find((s: BackendSchedule) => s.location_id === selectedLocation)
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
@@ -236,7 +194,6 @@ export default function Monitor() {
 
   return (
     <div className="flex h-full">
-      {/* Location List */}
       <div className="w-80 bg-gray-950/80 backdrop-blur-sm border-r border-gray-800/50 flex flex-col">
         <div className="p-4 border-b border-gray-800/50">
           <div className="flex items-center justify-between mb-3">
@@ -318,7 +275,7 @@ export default function Monitor() {
               <p className="text-xs text-gray-600 mt-1">Click + to add your first site</p>
             </div>
           ) : (
-            filteredLocations.map((loc) => (
+            filteredLocations.map((loc: BackendLocation) => (
               <div
                 key={loc.id}
                 className={`px-4 py-3 border-b border-gray-800/30 hover:bg-gray-800/30 transition-colors ${
@@ -358,7 +315,6 @@ export default function Monitor() {
           )}
         </div>
 
-        {/* Selected Location Detail */}
         {selectedLocData && (
           <div className="p-4 border-t border-gray-800/50 bg-gray-900/30">
             <div className="flex items-center gap-2 mb-3">
@@ -420,7 +376,6 @@ export default function Monitor() {
         )}
       </div>
 
-      {/* Map */}
       <div className="flex-1 relative">
         <div ref={mapContainer} className="absolute inset-0" />
 
@@ -431,7 +386,7 @@ export default function Monitor() {
           </div>
           <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-lg px-3 py-2 flex items-center gap-2">
             <Eye className="w-4 h-4 text-green-400" />
-            <span className="text-xs font-mono text-gray-300">{locations.filter((l) => l.is_monitored).length} Active</span>
+            <span className="text-xs font-mono text-gray-300">{(locations as BackendLocation[] | undefined)?.filter((l: BackendLocation) => l.is_monitored).length ?? 0} Active</span>
           </div>
         </div>
 
