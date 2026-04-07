@@ -30,7 +30,7 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const user = useQuery(api.auth.currentUser)
+  const user = useQuery(api.sessions.currentUser)
 
   if (user === undefined) {
     return <PageLoader />

@@ -13,7 +13,7 @@ export default function Login() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const signInWithPassword = useMutation(api.auth.signIn)
+  const signInWithPassword = useMutation(api.sessions.signIn)
 
   useEffect(() => {
     setMounted(true)

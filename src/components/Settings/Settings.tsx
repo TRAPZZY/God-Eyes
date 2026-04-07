@@ -28,9 +28,9 @@ export default function Settings() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [passwordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const user = useQuery(api.auth.currentUser)
+  const user = useQuery(api.sessions.currentUser)
   const health = useQuery(api.stats.health)
-  const signOut = useMutation(api.auth.signOut)
+  const signOut = useMutation(api.sessions.signOut)
 
   useEffect(() => {
     const interval = setInterval(() => {}, 30000)

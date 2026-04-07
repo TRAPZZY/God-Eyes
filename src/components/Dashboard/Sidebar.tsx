@@ -32,8 +32,8 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const user = useQuery(api.auth.currentUser)
-  const signOut = useMutation(api.auth.signOut)
+  const user = useQuery(api.sessions.currentUser)
+  const signOut = useMutation(api.sessions.signOut)
   const { theme, toggleTheme } = useThemeStore()
   const [collapsed, setCollapsed] = useState(false)
 

@@ -19,7 +19,7 @@ export default function Register() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const signUp = useMutation(api.auth.signUp)
+  const signUp = useMutation(api.sessions.signUp)
 
   useEffect(() => {
     setMounted(true)
