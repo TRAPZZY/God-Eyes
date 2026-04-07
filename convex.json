@@ -1,6 +1,6 @@
 {
   "project": "god-eyes",
-  "team": "REPLACE_WITH_YOUR_CONVEX_TEAM_SLUG",
+  "team": "god-eyes-e2307",
   "functions": "convex/",
   "node": {
     "externalPackages": ["bcryptjs"]
