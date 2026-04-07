@@ -64,14 +64,10 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/50 via-gray-950 to-blue-950/50" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/50 via-gray-950 to-blue-950/50 pointer-events-none" />
 
-      <div
-        className={`relative z-10 w-full max-w-md px-6 transition-all duration-700 ${
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-        }`}
-      >
+      <div className={`relative z-10 w-full max-w-md px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-6">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
@@ -81,12 +77,12 @@ export default function Register() {
           <h1 className="text-4xl font-black tracking-wider text-white mb-2">
             GOD <span className="text-blue-400">EYES</span>
           </h1>
-          <p className="text-sm font-medium tracking-[0.2em] text-blue-400/80 uppercase mb-3">
+          <p className="text-sm font-medium tracking-widest text-blue-400/80 uppercase mb-3">
             Operator Registration
           </p>
         </div>
 
-        <div className="bg-gray-900/90 backdrop-blur-sm border border-gray-800 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
           <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-800">
             <Crosshair className="w-4 h-4 text-cyan-400" />
             <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">New Operator Credentials</span>
