@@ -48,7 +48,8 @@ export default function Sidebar() {
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-7 w-6 h-6 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors z-20"
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="absolute -right-3 top-7 w-6 h-6 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors z-20 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {collapsed ? (
           <ChevronRight className="w-3 h-3 text-gray-400" />
@@ -90,6 +91,7 @@ export default function Sidebar() {
               ) : null}
               <Link
                 to={item.path}
+                aria-current={isActive ? 'page' : undefined}
                 className={`flex items-center gap-3 rounded-lg transition-all group ${
                   collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'
                 } ${
@@ -115,6 +117,7 @@ export default function Sidebar() {
       <div className="p-3 border-t border-gray-800/50 space-y-1">
         <button
           onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className={`flex items-center gap-3 rounded-lg transition-all text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 border border-transparent ${
             collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'
           }`}
@@ -146,6 +149,7 @@ export default function Sidebar() {
 
         <button
           onClick={handleLogout}
+          aria-label="Disconnect and log out"
           className={`flex items-center gap-3 rounded-lg transition-all text-gray-400 hover:bg-red-500/10 hover:text-red-400 border border-transparent ${
             collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'
           }`}

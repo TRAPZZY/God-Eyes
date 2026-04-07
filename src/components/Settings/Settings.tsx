@@ -199,6 +199,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => setShowCurrent(!showCurrent)}
+                  aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                 >
                   {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -222,6 +223,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => setShowNew(!showNew)}
+                  aria-label={showNew ? 'Hide new password' : 'Show new password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                 >
                   {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -245,6 +247,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
+                  aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                 >
                   {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -292,6 +295,7 @@ export default function Settings() {
               <button
                 onClick={checkHealth}
                 disabled={healthLoading}
+                aria-label="Refresh health status"
                 className="p-1.5 text-gray-400 hover:text-white transition-colors"
               >
                 <RefreshCw className={`w-4 h-4 ${healthLoading ? 'animate-spin' : ''}`} />
@@ -315,7 +319,7 @@ export default function Settings() {
                 <span className="text-xs text-gray-500 font-mono uppercase">API Endpoint</span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-300 font-mono">{apiUrl}</span>
-                  <button onClick={copyApiUrl} className="text-gray-500 hover:text-white transition-colors">
+                  <button onClick={copyApiUrl} aria-label={copied ? 'API URL copied' : 'Copy API URL'} className="text-gray-500 hover:text-white transition-colors">
                     {copied ? <CheckCircle className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
@@ -376,6 +380,7 @@ export default function Settings() {
           </div>
           <button
             onClick={() => { apiLogout(); logout(); }}
+            aria-label="Terminate session and disconnect"
             className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors flex items-center gap-2 text-sm font-mono uppercase"
           >
             <LogOut className="w-4 h-4" />

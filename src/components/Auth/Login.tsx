@@ -73,10 +73,11 @@ export default function Login() {
             )}
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="login-email" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Operator Email
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -88,10 +89,11 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="login-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Access Code
               </label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

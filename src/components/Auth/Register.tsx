@@ -97,10 +97,11 @@ export default function Register() {
             )}
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="register-email" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Email Address
               </label>
               <input
+                id="register-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -112,10 +113,11 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="register-callsign" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Callsign
               </label>
               <input
+                id="register-callsign"
                 type="text"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
@@ -126,10 +128,11 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="register-fullname" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Full Name (Optional)
               </label>
               <input
+                id="register-fullname"
                 type="text"
                 value={form.full_name}
                 onChange={(e) => setForm({ ...form, full_name: e.target.value })}
@@ -139,10 +142,11 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="register-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Access Code
               </label>
               <input
+                id="register-password"
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -154,10 +158,11 @@ export default function Register() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+              <label htmlFor="register-confirm" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
                 Confirm Access Code
               </label>
               <input
+                id="register-confirm"
                 type="password"
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
