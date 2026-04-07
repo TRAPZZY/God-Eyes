@@ -23,13 +23,7 @@ import {
 } from '../../services/api'
 import type { DashboardStats } from '../../types'
 import { severityColors } from '../../constants/ui'
-
-function csvEscape(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
-}
+import { csvEscape } from '../../constants/csv'
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
