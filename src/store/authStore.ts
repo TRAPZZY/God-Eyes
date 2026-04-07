@@ -22,9 +22,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
   loadUser: async () => {
     const token = localStorage.getItem('godeyes_access_token')
     if (!token) {
-      set({ user: null, isAuthenticated: false })
+      set({ user: null, isAuthenticated: false, isLoading: false })
       return
     }
+    set({ isLoading: true })
     try {
       const data = await apiGetMe()
       set({
@@ -36,11 +37,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
           role: data.role as User['role'],
         },
         isAuthenticated: true,
+        isLoading: false,
         error: null,
       })
-    } catch {
+    } catch (err: unknown) {
       apiLogout()
-      set({ user: null, isAuthenticated: false })
+      const message = err instanceof Error ? err.message : 'Session expired'
+      set({ user: null, isAuthenticated: false, isLoading: false, error: message })
+      console.error('Session validation failed:', err)
     }
   },
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Eye, Loader2, Shield, UserPlus, Crosshair } from 'lucide-react'
+import { Loader2, Shield, UserPlus, Crosshair } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
 export default function Register() {
@@ -11,6 +11,7 @@ export default function Register() {
     confirmPassword: '',
     full_name: '',
   })
+  const [validationError, setValidationError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const { register, isLoading, error } = useAuthStore()
   const navigate = useNavigate()
@@ -21,11 +22,22 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setValidationError(null)
 
-    if (form.password !== form.confirmPassword) {
+    if (!form.email.includes('@')) {
+      setValidationError('Invalid email address')
+      return
+    }
+    if (form.username.length < 3) {
+      setValidationError('Callsign must be at least 3 characters')
       return
     }
     if (form.password.length < 8) {
+      setValidationError('Access code must be at least 8 characters')
+      return
+    }
+    if (form.password !== form.confirmPassword) {
+      setValidationError('Access codes do not match')
       return
     }
 
@@ -77,10 +89,10 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
+            {(error || validationError) && (
               <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                {error}
+                {validationError || error}
               </div>
             )}
 

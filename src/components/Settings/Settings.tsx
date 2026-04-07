@@ -4,7 +4,6 @@ import {
   Shield,
   Key,
   LogOut,
-  Save,
   Eye,
   EyeOff,
   CheckCircle,
@@ -15,12 +14,10 @@ import {
   Clock,
   RefreshCw,
   Copy,
-  ExternalLink,
   Settings as SettingsIcon,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import {
-  apiGetMe,
   apiHealthCheck,
   apiLogout,
 } from '../../services/api'

@@ -1,5 +1,9 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
+const REQUEST_TIMEOUT_MS = 15_000
+
+let refreshPromise: Promise<boolean> | null = null
+
 function getToken(): string | null {
   return localStorage.getItem('godeyes_access_token')
 }
@@ -14,6 +18,53 @@ function clearTokens() {
   localStorage.removeItem('godeyes_refresh_token')
 }
 
+function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  return fetch(url, {
+    ...options,
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId))
+}
+
+function normalizePath(path: string): string {
+  const trimmed = path.replace(/\/+$/, '')
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+async function doRefreshToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    const refresh = localStorage.getItem('godeyes_refresh_token')
+    if (!refresh) return false
+    try {
+      const refreshRes = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refresh }),
+      })
+      if (refreshRes.ok) {
+        const data = await refreshRes.json()
+        setTokens(data.access_token, data.refresh_token)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
+function redirectToLogin() {
+  clearTokens()
+  window.location.href = '/login'
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
@@ -22,37 +73,25 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...(options.headers as Record<string, string> || {}),
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  const url = `${API_BASE}${normalizePath(path)}`
+  const res = await fetchWithTimeout(url, { ...options, headers })
 
   if (res.status === 401) {
-    const refresh = localStorage.getItem('godeyes_refresh_token')
-    if (refresh) {
-      try {
-        const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refresh }),
-        })
-        if (refreshRes.ok) {
-          const data = await refreshRes.json()
-          setTokens(data.access_token, data.refresh_token)
-          headers['Authorization'] = `Bearer ${data.access_token}`
-          const retryRes = await fetch(`${API_BASE}${path}`, { ...options, headers })
-          if (!retryRes.ok) {
-            clearTokens()
-            window.location.href = '/login'
-            throw new Error('Session expired')
-          }
-          return retryRes.json()
+    const refreshed = await doRefreshToken()
+    if (refreshed) {
+      const newToken = getToken()
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`
+        const retryRes = await fetchWithTimeout(url, { ...options, headers })
+        if (!retryRes.ok) {
+          redirectToLogin()
+          throw new Error('Session expired')
         }
-      } catch {
-        clearTokens()
-        window.location.href = '/login'
-        throw new Error('Session expired')
+        if (retryRes.status === 204) return undefined as T
+        return retryRes.json() as Promise<T>
       }
     }
-    clearTokens()
-    window.location.href = '/login'
+    redirectToLogin()
     throw new Error('Unauthorized')
   }
 
@@ -62,7 +101,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (res.status === 204) return undefined as T
-  return res.json()
+  return res.json() as Promise<T>
 }
 
 // ============================================================
@@ -116,7 +155,7 @@ export interface BackendLocation {
 
 export async function apiGetLocations(monitoredOnly = false): Promise<BackendLocation[]> {
   const params = monitoredOnly ? '?monitored_only=true' : ''
-  return request<BackendLocation[]>(`/locations/${params}`)
+  return request<BackendLocation[]>(`/locations${params}`)
 }
 
 export async function apiCreateLocation(data: {
@@ -128,7 +167,7 @@ export async function apiCreateLocation(data: {
   tags?: string
   notes?: string
 }) {
-  return request<BackendLocation>('/locations/', {
+  return request<BackendLocation>('/locations', {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -170,14 +209,14 @@ export interface BackendCapture {
 }
 
 export async function apiTriggerCapture(locationId: string, resolution = 'standard', style = 'satellite') {
-  return request<BackendCapture>('/captures/', {
+  return request<BackendCapture>('/captures', {
     method: 'POST',
     body: JSON.stringify({ location_id: locationId, resolution, style }),
   })
 }
 
 export async function apiGetCaptures(page = 1, perPage = 20): Promise<{ captures: BackendCapture[]; total: number }> {
-  return request<{ captures: BackendCapture[]; total: number }>(`/captures/?page=${page}&per_page=${perPage}`)
+  return request<{ captures: BackendCapture[]; total: number }>(`/captures?page=${page}&per_page=${perPage}`)
 }
 
 // ============================================================
@@ -290,11 +329,12 @@ export interface DashboardStats {
 }
 
 export async function apiGetDashboardStats(): Promise<DashboardStats> {
-  const [locations, schedules, changes, alerts] = await Promise.all([
+  const [locations, schedules, changes, alerts, health] = await Promise.all([
     apiGetLocations(),
     apiGetSchedules(),
     apiGetChanges().catch(() => []),
     apiGetAlertRules().catch(() => []),
+    apiHealthCheck().catch(() => ({ status: 'unknown', service: 'God Eyes', uptime_seconds: 0 })),
   ])
 
   const totalCaptures = schedules.reduce((sum, s) => sum + s.total_captures, 0)
@@ -302,15 +342,21 @@ export async function apiGetDashboardStats(): Promise<DashboardStats> {
     (c) => c.severity === 'high' || c.severity === 'critical'
   ).length
 
+  const monitoredCount = locations.filter((l) => l.is_monitored).length
+  const activeSchedules = schedules.filter((s) => s.is_active).length
+  const uptimePercent = monitoredCount > 0
+    ? ((activeSchedules / monitoredCount) * 100).toFixed(2)
+    : '0.00'
+
   return {
     total_locations: locations.length,
-    monitored_locations: locations.filter((l) => l.is_monitored).length,
+    monitored_locations: monitoredCount,
     total_captures: totalCaptures,
     total_changes: changes.length,
     high_severity_changes: highSeverity,
     active_alerts: alerts.filter((a) => a.is_active).length,
-    system_uptime: '99.97%',
-    last_sync: new Date().toISOString(),
+    system_uptime: `${uptimePercent}%`,
+    last_sync: health.uptime_seconds ? new Date(Date.now() - health.uptime_seconds * 1000).toISOString() : new Date().toISOString(),
   }
 }
 
@@ -318,14 +364,30 @@ export async function apiGetDashboardStats(): Promise<DashboardStats> {
 // Analysis
 // ============================================================
 
-export async function apiGetAnalysis(locationId?: string) {
-  const params = locationId ? `?location_id=${locationId}` : ''
-  return request<Record<string, unknown>>(`/analysis/summary${params}`)
+export interface AnalysisSummary {
+  total_changes: number
+  changes_by_severity: Record<string, number>
+  changes_by_location: Record<string, number>
+  average_change_score: number
+  last_analysis_at: string | null
 }
 
-export async function apiGetSentinelDates(locationId?: string) {
+export async function apiGetAnalysis(locationId?: string): Promise<AnalysisSummary> {
   const params = locationId ? `?location_id=${locationId}` : ''
-  return request<{ date: string; cloud_coverage: number; quality: string }[]>(
+  return request<AnalysisSummary>(`/analysis/summary${params}`)
+}
+
+export type SentinelQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'unknown'
+
+export interface SentinelDateEntry {
+  date: string
+  cloud_coverage: number
+  quality: SentinelQuality
+}
+
+export async function apiGetSentinelDates(locationId?: string): Promise<SentinelDateEntry[]> {
+  const params = locationId ? `?location_id=${locationId}` : ''
+  return request<SentinelDateEntry[]>(
     `/analysis/sentinel-dates${params}`
   )
 }
@@ -351,7 +413,7 @@ export async function apiGenerateReport(locationId: string) {
 // ============================================================
 
 export async function apiHealthCheck() {
-  return request<{ status: string; service: string }>('/health', {
+  return request<{ status: string; service: string; uptime_seconds?: number }>('/health', {
     headers: { 'Content-Type': 'application/json' },
   })
 }

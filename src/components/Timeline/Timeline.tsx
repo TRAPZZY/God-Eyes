@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   Clock,
   Satellite,
@@ -8,7 +8,6 @@ import {
   Calendar,
   MapPin,
   ArrowRight,
-  Loader2,
   AlertTriangle,
 } from 'lucide-react'
 import { apiGetLocations, apiGetCaptures, apiGetLocationCaptures, type BackendLocation, type BackendCapture } from '../../services/api'
@@ -20,13 +19,7 @@ export default function Timeline() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 60000)
-    return () => clearInterval(interval)
-  }, [selectedLocation])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -48,7 +41,13 @@ export default function Timeline() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedLocation])
+
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 60000)
+    return () => clearInterval(interval)
+  }, [loadData])
 
   const sortedCaptures = [...captures].sort(
     (a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()

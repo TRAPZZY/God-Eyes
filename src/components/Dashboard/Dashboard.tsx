@@ -1,28 +1,41 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   MapPin,
   Satellite,
   AlertTriangle,
   Activity,
   Eye,
-  TrendingUp,
   RefreshCw,
   Shield,
-  Clock,
-  Zap,
   ChevronRight,
   Radio,
+  Download,
+  Upload,
 } from 'lucide-react'
 import {
   apiGetDashboardStats,
   apiGetLocations,
   apiGetChanges,
   apiHealthCheck,
+  apiCreateLocation,
   type BackendLocation,
+  type BackendChange,
 } from '../../services/api'
 import type { DashboardStats } from '../../types'
-import type { BackendChange } from '../../services/api'
-import { Download, Upload } from 'lucide-react'
+
+const severityColors: Record<string, string> = {
+  critical: 'bg-red-500/10 border-red-500/20 text-red-400',
+  high: 'bg-orange-500/10 border-orange-500/20 text-orange-400',
+  medium: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400',
+  low: 'bg-green-500/10 border-green-500/20 text-green-400',
+}
+
+function csvEscape(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -32,13 +45,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -59,7 +66,13 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 30000)
+    return () => clearInterval(interval)
+  }, [loadData])
 
   if (loading) {
     return (
@@ -92,26 +105,19 @@ export default function Dashboard() {
     )
   }
 
-  const severityColors: Record<string, string> = {
-    critical: 'bg-red-500/10 border-red-500/20 text-red-400',
-    high: 'bg-orange-500/10 border-orange-500/20 text-orange-400',
-    medium: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400',
-    low: 'bg-green-500/10 border-green-500/20 text-green-400',
-  }
-
   const handleExportCSV = () => {
     if (locations.length === 0) return
     const headers = ['Name', 'Latitude', 'Longitude', 'Address', 'Monitored', 'Created']
     const rows = locations.map((loc) => [
-      loc.name,
+      csvEscape(loc.name),
       loc.latitude.toString(),
       loc.longitude.toString(),
-      loc.address || '',
+      csvEscape(loc.address || ''),
       loc.is_monitored ? 'Yes' : 'No',
       new Date(loc.created_at).toLocaleDateString(),
     ])
-    const csv = [headers.join(','), ...rows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -123,6 +129,10 @@ export default function Dashboard() {
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File too large. Maximum 5MB.')
+      return
+    }
     const text = await file.text()
     const lines = text.split('\n').filter((l) => l.trim())
     if (lines.length < 2) return
@@ -135,7 +145,6 @@ export default function Dashboard() {
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map((v) => v.replace(/"/g, '').trim())
       try {
-        const { apiCreateLocation } = await import('../../services/api')
         await apiCreateLocation({
           name: values[nameIdx],
           latitude: parseFloat(values[latIdx]),
@@ -264,7 +273,7 @@ export default function Dashboard() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500 font-mono">{change.location_id.slice(0, 8)}</span>
+                      <span className="text-xs text-gray-500 font-mono">{change.location_id?.slice(0, 8) || 'unknown'}</span>
                       <span className="text-xs text-gray-600">Score: {change.change_score}%</span>
                     </div>
                   </div>
@@ -285,11 +294,9 @@ export default function Dashboard() {
           </div>
           <div className="divide-y divide-gray-800/30">
             <SystemStatusItem service="API Server" status={systemHealthy ? 'online' : 'degraded'} latency="<50ms" />
-            <SystemStatusItem service="Database" status="online" latency="<10ms" />
-            <SystemStatusItem service="Mapbox Tiles" status="online" latency="<100ms" />
-            <SystemStatusItem service="Scheduler" status="online" latency="—" />
-            <SystemStatusItem service="Capture Engine" status="online" latency="—" />
-            <SystemStatusItem service="Change Detection" status="online" latency="—" />
+            <SystemStatusItem service="Database" status={systemHealthy ? 'online' : 'unknown'} latency={systemHealthy ? '<10ms' : '—'} />
+            <SystemStatusItem service="Capture Engine" status={systemHealthy ? 'ready' : 'unknown'} latency="—" />
+            <SystemStatusItem service="Change Detection" status={systemHealthy ? 'ready' : 'unknown'} latency="—" />
           </div>
         </div>
       </div>

@@ -2,27 +2,14 @@ import { useEffect, useState } from 'react'
 import {
   BarChart3,
   Satellite,
-  TrendingUp,
   AlertTriangle,
-  Loader2,
   Brain,
   Target,
-  Leaf,
-  Droplets,
-  Building2,
   Activity,
   Eye,
   RefreshCw,
   MapPin,
 } from 'lucide-react'
-import {
-  apiGetLocations,
-  apiGetChanges,
-  apiGetSchedules,
-  type BackendLocation,
-  type BackendChange,
-  type BackendSchedule,
-} from '../../services/api'
 import {
   BarChart,
   Bar,
@@ -31,12 +18,18 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
   LineChart,
   Line,
 } from 'recharts'
+import {
+  apiGetLocations,
+  apiGetChanges,
+  apiGetSchedules,
+  type BackendLocation,
+  type BackendChange,
+  type BackendSchedule,
+} from '../../services/api'
 
 export default function Analysis() {
   const [locations, setLocations] = useState<BackendLocation[]>([])

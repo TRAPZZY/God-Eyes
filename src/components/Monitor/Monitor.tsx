@@ -6,7 +6,6 @@ import {
   Radio,
   Eye,
   AlertTriangle,
-  ChevronRight,
   Search,
   Layers,
   Plus,
@@ -31,33 +30,7 @@ export default function Monitor() {
   const [capturing, setCapturing] = useState<string | null>(null)
   const [newLocation, setNewLocation] = useState({ name: '', latitude: '', longitude: '', address: '' })
 
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 60000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    if (map.current && locations.length > 0) {
-      updateMarkers()
-    }
-  }, [locations])
-
-  useEffect(() => {
-    if (map.current && selectedLocation) {
-      const loc = locations.find((l) => l.id === selectedLocation)
-      if (loc) {
-        map.current.flyTo({
-          center: [loc.longitude, loc.latitude],
-          zoom: 12,
-          duration: 1500,
-          essential: true,
-        })
-      }
-    }
-  }, [selectedLocation, locations])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [locsData, schedData] = await Promise.all([
         apiGetLocations(),
@@ -70,7 +43,7 @@ export default function Monitor() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   const clearMarkers = useCallback(() => {
     markersRef.current.forEach((m) => m.remove())
@@ -144,7 +117,58 @@ export default function Monitor() {
       map.current?.remove()
       map.current = null
     }
-  }, [])
+  }, [clearMarkers, locations, selectedLocation])
+
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 60000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  useEffect(() => {
+    if (map.current && locations.length > 0) {
+      updateMarkers()
+    }
+  }, [locations, updateMarkers])
+
+  useEffect(() => {
+    if (map.current && selectedLocation) {
+      const loc = locations.find((l) => l.id === selectedLocation)
+      if (loc) {
+        map.current.flyTo({
+          center: [loc.longitude, loc.latitude],
+          zoom: 12,
+          duration: 1500,
+          essential: true,
+        })
+      }
+    }
+  }, [selectedLocation, locations])
+
+  useEffect(() => {
+    if (map.current || !mapboxgl.accessToken) return
+
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current!,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-95.7129, 37.0902],
+      zoom: 3,
+      attributionControl: false,
+    })
+
+    map.current.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right')
+
+    map.current.on('load', () => {
+      if (locations.length > 0) {
+        updateMarkers()
+      }
+    })
+
+    return () => {
+      map.current?.remove()
+      map.current = null
+    }
+  }, [updateMarkers, locations])
 
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault()
