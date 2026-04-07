@@ -304,7 +304,7 @@ export default function Analysis() {
                     {change.severity}
                   </span>
                   <span className="text-[10px] font-mono text-gray-600">
-                    {new Date(change.detected_at).toLocaleDateString()}
+                    {new Date(change.detected_at).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                   </span>
                 </div>
               </div>
@@ -389,13 +389,13 @@ function computeChangeTrend(changes: BackendChange[]) {
   const now = new Date()
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const key = d.toLocaleDateString('en-US', { month: 'short' })
+    const key = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
     months[key] = 0
   }
 
   changes.forEach((c) => {
     const d = new Date(c.detected_at)
-    const key = d.toLocaleDateString('en-US', { month: 'short' })
+    const key = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
     if (months[key] !== undefined) {
       months[key]++
     }

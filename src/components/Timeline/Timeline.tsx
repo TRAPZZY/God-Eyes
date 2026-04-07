@@ -192,7 +192,7 @@ export default function Timeline() {
                         <div className="flex items-center gap-1.5 text-xs text-gray-400">
                           <Clock className="w-3.5 h-3.5" />
                           <span className="font-mono">
-                            {new Date(capture.captured_at).toLocaleTimeString([], {
+                            {new Date(capture.captured_at).toLocaleTimeString('en-US', {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}

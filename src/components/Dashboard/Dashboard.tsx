@@ -175,7 +175,7 @@ export default function Dashboard() {
             </span>
           </div>
           <p className="text-sm text-gray-500 font-mono">
-            Last sync: {stats?.last_sync ? new Date(stats.last_sync).toLocaleString() : 'N/A'}
+            Last sync: {stats?.last_sync ? new Date(stats.last_sync).toLocaleString('en-US', { timeZone: 'UTC' }) : 'N/A'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -278,7 +278,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <span className="text-xs text-gray-600 font-mono flex-shrink-0">
-                    {new Date(change.detected_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(change.detected_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
                   </span>
                 </div>
               ))}
