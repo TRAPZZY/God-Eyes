@@ -30,6 +30,7 @@ import {
   type BackendChange,
   type BackendSchedule,
 } from '../../services/api'
+import { severityColors } from '../../constants/ui'
 
 export default function Analysis() {
   const [locations, setLocations] = useState<BackendLocation[]>([])
@@ -83,13 +84,6 @@ export default function Analysis() {
   ]
 
   const changeTrendData = computeChangeTrend(changes)
-
-  const severityColors: Record<string, string> = {
-    critical: 'bg-red-500/10 border-red-500/20 text-red-400',
-    high: 'bg-orange-500/10 border-orange-500/20 text-orange-400',
-    medium: 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400',
-    low: 'bg-green-500/10 border-green-500/20 text-green-400',
-  }
 
   if (loading) {
     return (
