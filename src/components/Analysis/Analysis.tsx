@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   BarChart3,
   Satellite,
@@ -40,13 +40,7 @@ export default function Analysis() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
-  }, [selectedLocation])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -65,25 +59,30 @@ export default function Analysis() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const getLocationName = (locationId: string) => {
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 30000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  const getLocationName = useCallback((locationId: string) => {
     const loc = locations.find((l) => l.id === locationId)
     return loc ? loc.name : locationId.slice(0, 8)
-  }
+  }, [locations])
 
-  const totalCaptures = schedules.reduce((sum, s) => sum + s.total_captures, 0)
-  const monitoredCount = locations.filter((l) => l.is_monitored).length
-  const highSeverity = changes.filter((c) => c.severity === 'high' || c.severity === 'critical').length
-
-  const severityData = [
+  const totalCaptures = useMemo(() => schedules.reduce((sum, s) => sum + s.total_captures, 0), [schedules])
+  const monitoredCount = useMemo(() => locations.filter((l) => l.is_monitored).length, [locations])
+  const highSeverity = useMemo(() => changes.filter((c) => c.severity === 'high' || c.severity === 'critical').length, [changes])
+  const severityData = useMemo(() => [
     { name: 'Critical', value: changes.filter((c) => c.severity === 'critical').length, color: '#ef4444' },
     { name: 'High', value: changes.filter((c) => c.severity === 'high').length, color: '#f97316' },
     { name: 'Medium', value: changes.filter((c) => c.severity === 'medium').length, color: '#eab308' },
     { name: 'Low', value: changes.filter((c) => c.severity === 'low').length, color: '#22c55e' },
-  ]
+  ], [changes])
 
-  const changeTrendData = computeChangeTrend(changes)
+  const changeTrendData = useMemo(() => computeChangeTrend(changes), [changes])
 
   if (loading) {
     return (
