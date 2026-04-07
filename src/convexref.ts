@@ -89,8 +89,61 @@ export type DashboardStats = {
 }
 
 export type User = {
+  id: Id
   email: string
   username: string
   full_name?: string
-  created_at?: string
+  role?: string
 }
+
+const api = {
+  alerts: {
+    list: () => Promise.resolve([]),
+    create: () => Promise.resolve({}),
+  },
+  auth: {
+    currentUser: () => Promise.resolve(null),
+    signIn: () => Promise.resolve({ success: true }),
+    signUp: () => Promise.resolve({ userId: '' }),
+    signOut: () => Promise.resolve({ success: true }),
+  },
+  captures: {
+    list: () => Promise.resolve([]),
+    byLocation: () => Promise.resolve([]),
+  },
+  capturesMutations: {
+    create: () => Promise.resolve({}),
+  },
+  changes: {
+    list: () => Promise.resolve([]),
+  },
+  locations: {
+    list: () => Promise.resolve([]),
+    get: () => Promise.resolve(null),
+  },
+  locationsMutations: {
+    create: () => Promise.resolve({}),
+    update: () => Promise.resolve({}),
+    remove: () => Promise.resolve({}),
+    toggleMonitor: () => Promise.resolve({}),
+  },
+  schedules: {
+    list: () => Promise.resolve([]),
+    create: () => Promise.resolve({}),
+  },
+  stats: {
+    dashboard: () => Promise.resolve({
+      total_locations: 0,
+      monitored_locations: 0,
+      total_captures: 0,
+      total_changes: 0,
+      high_severity_changes: 0,
+      active_alerts: 0,
+      system_uptime: '0h',
+      last_sync: new Date().toISOString(),
+    }),
+    health: () => Promise.resolve({ status: 'ok' }),
+  },
+} as const
+
+export { api }

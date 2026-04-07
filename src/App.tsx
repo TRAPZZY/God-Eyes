@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { useQuery } from 'convex/react'
 import { useThemeStore } from './store/themeStore'
 import { ErrorBoundary } from './components/Shared/ErrorBoundary'
-import { api } from '../convex/_generated/api'
+import { api as convexApi } from '../convex/_generated/api'
+const api = convexApi as any
 import Login from './components/Auth/Login'
 import Register from './components/Auth/Register'
 import Sidebar from './components/Dashboard/Sidebar'

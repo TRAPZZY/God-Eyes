@@ -71,7 +71,7 @@ export const signUp = mutation({
 
 export const signOut = mutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async () => {
     return { success: true }
   },
 })

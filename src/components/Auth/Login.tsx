@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Eye, Loader2, Shield, Zap, Globe, Crosshair } from 'lucide-react'
 import { useMutation } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
+import { api as convexApi } from '../../../convex/_generated/api'
+const api = convexApi as any
 
 export default function Login() {
   const [email, setEmail] = useState('')

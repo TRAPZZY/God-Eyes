@@ -16,7 +16,8 @@ import {
   Settings as SettingsIcon,
 } from 'lucide-react'
 import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
+import { api as convexApi } from '../../../convex/_generated/api'
+const api = convexApi as any
 
 export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('')

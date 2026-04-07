@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import mapboxgl from 'mapbox-gl'
 import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
+import { api as convexApi } from '../../../convex/_generated/api'
+const api = convexApi as any
 import type { BackendLocation, BackendSchedule } from '../../convexref'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || ''

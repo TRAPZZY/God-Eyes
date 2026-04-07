@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Loader2, Shield, UserPlus, Crosshair } from 'lucide-react'
 import { useMutation } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
+import { api as convexApi } from '../../../convex/_generated/api'
+const api = convexApi as any
 
 export default function Register() {
   const [form, setForm] = useState({

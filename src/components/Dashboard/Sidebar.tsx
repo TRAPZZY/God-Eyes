@@ -18,7 +18,8 @@ import {
 } from 'lucide-react'
 import { useThemeStore } from '../../store/themeStore'
 import { roleColors } from '../../constants/ui'
-import { api } from '../../../convex/_generated/api'
+import { api as convexApi } from '../../../convex/_generated/api'
+const api = convexApi as any
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', section: 'Overview' },
