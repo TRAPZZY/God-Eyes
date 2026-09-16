@@ -9,6 +9,7 @@
  */
 
 import type * as api_alerts from "../api/alerts.js";
+import type * as api_authHelpers from "../api/authHelpers.js";
 import type * as api_captures from "../api/captures.js";
 import type * as api_capturesMutations from "../api/capturesMutations.js";
 import type * as api_changes from "../api/changes.js";
@@ -18,6 +19,7 @@ import type * as api_schedules from "../api/schedules.js";
 import type * as api_sessions from "../api/sessions.js";
 import type * as api_stats from "../api/stats.js";
 import type * as auth from "../auth.js";
+import type * as http from "../http.js";
 
 import type {
   ApiFromModules,
@@ -27,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "api/alerts": typeof api_alerts;
+  "api/authHelpers": typeof api_authHelpers;
   "api/captures": typeof api_captures;
   "api/capturesMutations": typeof api_capturesMutations;
   "api/changes": typeof api_changes;
@@ -36,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   "api/sessions": typeof api_sessions;
   "api/stats": typeof api_stats;
   auth: typeof auth;
+  http: typeof http;
 }>;
 
 /**

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,11 +9,47 @@
   
   body {
     @apply bg-gray-950 text-gray-100 font-sans;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-width: 320px;
   }
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+.auth-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(74, 130, 255, 0.14), transparent 30rem),
+    radial-gradient(circle at 76% 84%, rgba(45, 115, 160, 0.1), transparent 28rem),
+    #0b0d12;
+}
+
+.auth-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.38;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.auth-panel {
+  background: rgba(18, 21, 29, 0.78);
+  box-shadow: -28px 0 80px rgba(0, 0, 0, 0.22);
+}
+
+.auth-mark {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 16px 32px rgba(37, 99, 235, 0.18);
+}
 
 .mapboxgl-ctrl-logo { opacity: 0.5; }
 .mapboxgl-ctrl-attrib { opacity: 0.3; font-size: 9px; }
@@ -42,24 +76,6 @@ html { scroll-behavior: smooth; }
   to { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
-  50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.15), 0 0 80px rgba(59, 130, 246, 0.05); }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
 .animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
 .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
 .animate-slideInLeft { animation: slideInLeft 0.4s ease-out forwards; }
-.animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
-.animate-float { animation: float 6s ease-in-out infinite; }
-.animate-blink { animation: blink 2s ease-in-out infinite; }

@@ -1,10 +1,8 @@
 import { useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useQuery } from 'convex/react'
+import { useConvexAuth } from '@convex-dev/auth/react'
 import { useThemeStore } from './store/themeStore'
 import { ErrorBoundary } from './components/Shared/ErrorBoundary'
-import { api as convexApi } from '../convex/_generated/api'
-const api = convexApi as any
 import Login from './components/Auth/Login'
 import Register from './components/Auth/Register'
 import Sidebar from './components/Dashboard/Sidebar'
@@ -30,13 +28,13 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const user = useQuery(api.sessions.currentUser)
+  const { isLoading, isAuthenticated } = useConvexAuth()
 
-  if (user === undefined) {
+  if (isLoading) {
     return <PageLoader />
   }
 
-  return user ? <>{children}</> : <Navigate to="/login" replace />
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 function AppLayout() {

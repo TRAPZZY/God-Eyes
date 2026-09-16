@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { Eye, Loader2, Shield, Zap, Globe, Crosshair } from 'lucide-react'
-import { useMutation } from 'convex/react'
-import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Eye, Loader2, ShieldCheck } from 'lucide-react'
+import { useAuthActions } from '@convex-dev/auth/react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -13,21 +11,22 @@ export default function Login() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const signInWithPassword = useMutation(api.sessions.signIn)
+  const { signIn } = useAuthActions()
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setError(null)
     setLoading(true)
+
     try {
-      await signInWithPassword({ email, password })
+      await signIn('password', { email, password, flow: 'signIn' })
       navigate('/')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Authentication failed'
+      const message = err instanceof Error ? err.message : 'Unable to sign in right now.'
       setError(message)
     } finally {
       setLoading(false)
@@ -35,110 +34,103 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-950/50 via-gray-950 to-gray-950 pointer-events-none" />
-      
-      <div className={`relative z-10 w-full max-w-md px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <Eye className="w-10 h-10 text-white" />
-            </div>
+    <div className="auth-shell min-h-screen">
+      <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_30rem]">
+        <section className="hidden min-h-screen flex-col justify-between px-12 py-12 lg:flex xl:px-16 xl:py-14">
+          <div className="flex items-center gap-3 text-sm font-semibold tracking-tight text-white">
+            <span className="auth-mark flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 text-white">
+              <Eye className="h-5 w-5" />
+            </span>
+            God Eyes
           </div>
-          <h1 className="text-4xl font-black tracking-wider text-white mb-2">
-            GOD <span className="text-blue-400">EYES</span>
-          </h1>
-          <p className="text-sm font-medium tracking-widest text-blue-400/80 uppercase mb-3">
-            Defense-Grade Satellite Intelligence Platform
+
+          <div className="max-w-xl pb-12">
+            <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-blue-300">Intelligence workspace</p>
+            <h1 className="text-5xl font-semibold leading-[1.04] tracking-[-0.045em] text-stone-50 xl:text-6xl">
+              A clearer view of the places that matter.
+            </h1>
+            <p className="mt-6 max-w-md text-base leading-7 text-slate-400">
+              Bring locations, captures, and changes into one focused operational workspace.
+            </p>
+          </div>
+
+          <p className="max-w-sm text-xs leading-5 text-slate-500">
+            Your workspace is organized around the information you add and manage—not simulated activity or status indicators.
           </p>
-          <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> CLASSIFIED</span>
-            <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> ACTIVE</span>
-            <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> GLOBAL</span>
-          </div>
-        </div>
+        </section>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-800">
-            <Crosshair className="w-4 h-4 text-blue-400" />
-            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">Authentication Required</span>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="login-email" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Operator Email
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all font-mono text-sm"
-                placeholder="operator@godeyes.io"
-                required
-                autoComplete="email"
-              />
+        <main className="auth-panel flex min-h-screen items-center border-l border-white/[0.07] px-6 py-10 sm:px-10 lg:px-12">
+          <div className={`mx-auto w-full max-w-sm transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'}`}>
+            <div className="mb-10 flex items-center gap-3 lg:hidden">
+              <span className="auth-mark flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 text-white">
+                <Eye className="h-5 w-5" />
+              </span>
+              <span className="text-sm font-semibold text-white">God Eyes</span>
             </div>
 
-            <div>
-              <label htmlFor="login-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Access Code
-              </label>
-              <input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all font-mono text-sm"
-                placeholder="Enter access code"
-                required
-                autoComplete="current-password"
-              />
+            <div className="mb-8">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Welcome back</p>
+              <h2 className="text-3xl font-semibold tracking-[-0.035em] text-stone-50">Sign in to your workspace</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400">Use the email address and password associated with your account.</p>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-[0.98]"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                <>
-                  <Shield className="w-4 h-4" />
-                  Initialize Session
-                </>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm leading-5 text-red-200">
+                  {error}
+                </div>
               )}
-            </button>
-          </form>
 
-          <p className="text-center text-gray-500 text-xs mt-6">
-            New operator?{' '}
-            <Link to="/register" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">
-              Request Access
-            </Link>
-          </p>
-        </div>
+              <div>
+                <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-slate-200">Email address</label>
+                <input
+                  id="login-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
 
-        <div className="text-center mt-8">
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-600 font-mono">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span>SYSTEM OPERATIONAL</span>
-            <span className="text-gray-700">|</span>
-            <span>v2.0.0</span>
+              <div>
+                <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-200">Password</label>
+                <input
+                  id="login-password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="Enter your password"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                {isLoading ? 'Signing in…' : 'Sign in'}
+              </button>
+            </form>
+
+            <div className="mt-8 border-t border-white/[0.08] pt-6">
+              <p className="text-sm text-slate-400">
+                New to God Eyes?{' '}
+                <Link to="/register" className="font-medium text-blue-300 transition hover:text-blue-200">Create an account</Link>
+              </p>
+              <p className="mt-4 flex items-center gap-2 text-xs leading-5 text-slate-500">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                Account access will be protected by the security upgrades now in progress.
+              </p>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   )

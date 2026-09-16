@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery } from 'convex/react'
+import { useAuthActions } from '@convex-dev/auth/react'
 import {
   LayoutDashboard,
   Satellite,
@@ -19,7 +20,7 @@ import {
 import { useThemeStore } from '../../store/themeStore'
 import { roleColors } from '../../constants/ui'
 import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+const api = convexApi.api as any
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', section: 'Overview' },
@@ -33,13 +34,13 @@ export default function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useQuery(api.sessions.currentUser)
-  const signOut = useMutation(api.sessions.signOut)
+  const { signOut } = useAuthActions()
   const { theme, toggleTheme } = useThemeStore()
   const [collapsed, setCollapsed] = useState(false)
 
   const handleLogout = async () => {
     try {
-      await signOut({})
+      await signOut()
     } catch {
       // ignore
     }

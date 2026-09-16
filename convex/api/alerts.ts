@@ -1,10 +1,15 @@
 import { query, mutation } from '../_generated/server'
 import { v } from 'convex/values'
+import { requireOwnedLocation, requireUserId } from './authHelpers'
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const alerts = await ctx.db.query('alertRules').collect()
+    const userId = await requireUserId(ctx)
+    const alerts = await ctx.db
+      .query('alertRules')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(100)
 
     return alerts.map((a) => ({
       id: a._id,
@@ -33,8 +38,9 @@ export const create = mutation({
     notification_target: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const { userId } = await requireOwnedLocation(ctx, args.location_id)
     const alertId = await ctx.db.insert('alertRules', {
-      userId: '' as any,
+      userId,
       locationId: args.location_id,
       ruleType: args.rule_type,
       name: args.name,

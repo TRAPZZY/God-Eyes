@@ -1,105 +1,129 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
-import { expect, test, describe, beforeEach } from 'vitest'
-import { api } from '../../_generated/api.js'
-import schema from '../../schema.js'
+import { describe, expect, test } from 'vitest'
+import { api } from '../_generated/api'
+import schema from '../schema'
+import type { Id } from '../_generated/dataModel'
 
 const modules = {
-  'api/sessions.ts': () => import('./sessions.js'),
-  'api/locations.ts': () => import('./locations.js'),
-  'api/locationsMutations.ts': () => import('./locationsMutations.js'),
-  'api/captures.ts': () => import('./captures.js'),
-  'api/capturesMutations.ts': () => import('./capturesMutations.js'),
-  'api/changes.ts': () => import('./changes.js'),
-  'api/schedules.ts': () => import('./schedules.js'),
-  'api/stats.ts': () => import('./stats.js'),
-  'api/alerts.ts': () => import('./alerts.js'),
-  '_generated/server.js': () => import('../../_generated/server.js'),
+  'api/alerts.ts': () => import('./alerts'),
+  'api/authHelpers.ts': () => import('./authHelpers'),
+  'api/captures.ts': () => import('./captures'),
+  'api/capturesMutations.ts': () => import('./capturesMutations'),
+  'api/changes.ts': () => import('./changes'),
+  'api/locations.ts': () => import('./locations'),
+  'api/locationsMutations.ts': () => import('./locationsMutations'),
+  'api/schedules.ts': () => import('./schedules'),
+  'api/sessions.ts': () => import('./sessions'),
+  'api/stats.ts': () => import('./stats'),
+  'auth.ts': () => import('../auth'),
+  '_generated/api.js': () => import('../_generated/api'),
+  '_generated/server.js': () => import('../_generated/server'),
+}
+const publicApi = api.api
+
+async function createTestUser(t: ReturnType<typeof convexTest>, email: string) {
+  return await t.run(async (ctx) => {
+    return await ctx.db.insert('users', {
+      email,
+      username: email.split('@')[0],
+      name: email.split('@')[0],
+      fullName: email.split('@')[0],
+      role: 'operator',
+      isActive: true,
+      createdAt: Date.now(),
+    })
+  })
 }
 
-describe('sessions API', () => {
-  const t = convexTest(schema, modules)
+function asUser(t: ReturnType<typeof convexTest>, userId: Id<'users'>) {
+  return t.withIdentity({
+    subject: `${userId}|test-session`,
+    tokenIdentifier: `${userId}|test-session`,
+  })
+}
 
-  describe('currentUser', () => {
-    test('returns null when no user is authenticated', async () => {
-      const result = await t.query(api.sessions.currentUser, {})
-      expect(result).toBeNull()
+describe('authenticated Convex API', () => {
+  test('currentUser returns null without a session', async () => {
+    const t = convexTest(schema, modules)
+
+    const result = await t.query(publicApi.sessions.currentUser, {})
+
+    expect(result).toBeNull()
+  })
+
+  test('currentUser returns the authenticated user profile', async () => {
+    const t = convexTest(schema, modules)
+    const userId = await createTestUser(t, 'alice@example.com')
+
+    const result = await asUser(t, userId).query(publicApi.sessions.currentUser, {})
+
+    expect(result).toMatchObject({
+      id: userId,
+      email: 'alice@example.com',
+      username: 'alice',
+      role: 'operator',
+      is_active: true,
     })
   })
 
-  describe('signUp', () => {
-    test('creates a new user with valid email and username', async () => {
-      const result = await t.mutation(api.sessions.signUp, {
-        email: 'test@example.com',
-        username: 'testuser',
-        password: 'password123',
-      })
+  test('locations require authentication', async () => {
+    const t = convexTest(schema, modules)
 
-      expect(result).toHaveProperty('success', true)
-      expect(result).toHaveProperty('userId')
-    })
-
-    test('throws error when email is already registered', async () => {
-      await t.mutation(api.sessions.signUp, {
-        email: 'duplicate@example.com',
-        username: 'user1',
-        password: 'password123',
-      })
-
-      await expect(
-        t.mutation(api.sessions.signUp, {
-          email: 'duplicate@example.com',
-          username: 'user2',
-          password: 'password456',
-        })
-      ).rejects.toThrow('Email already registered')
-    })
-
-    test('creates user with optional fullName', async () => {
-      const result = await t.mutation(api.sessions.signUp, {
-        email: 'fullname@example.com',
-        username: 'fullnameuser',
-        password: 'password123',
-        fullName: 'Test User',
-      })
-
-      expect(result).toHaveProperty('success', true)
-    })
+    await expect(t.query(publicApi.locations.list, {})).rejects.toThrow('Authentication required')
+    await expect(t.mutation(publicApi.locationsMutations.create, {
+      name: 'Restricted Site',
+      latitude: 10,
+      longitude: 20,
+    })).rejects.toThrow('Authentication required')
   })
 
-  describe('signIn', () => {
-    test('returns success for existing user', async () => {
-      await t.mutation(api.sessions.signUp, {
-        email: 'login@example.com',
-        username: 'loginuser',
-        password: 'password123',
-      })
+  test('users can only read their own locations', async () => {
+    const t = convexTest(schema, modules)
+    const aliceId = await createTestUser(t, 'alice@example.com')
+    const bobId = await createTestUser(t, 'bob@example.com')
 
-      const result = await t.mutation(api.sessions.signIn, {
-        email: 'login@example.com',
-        password: 'password123',
-      })
-
-      expect(result).toHaveProperty('success', true)
-      expect(result).toHaveProperty('userId')
-      expect(result).toHaveProperty('email', 'login@example.com')
-      expect(result).toHaveProperty('username', 'loginuser')
+    const locationId = await asUser(t, aliceId).mutation(publicApi.locationsMutations.create, {
+      name: 'Alice Site',
+      latitude: 10,
+      longitude: 20,
     })
 
-    test('throws error for non-existent user', async () => {
-      await expect(
-        t.mutation(api.sessions.signIn, {
-          email: 'nonexistent@example.com',
-          password: 'wrongpassword',
-        })
-      ).rejects.toThrow('Invalid email or password')
-    })
+    const aliceLocations = await asUser(t, aliceId).query(publicApi.locations.list, {})
+    const bobLocations = await asUser(t, bobId).query(publicApi.locations.list, {})
+    const bobLookup = await asUser(t, bobId).query(publicApi.locations.get, { id: locationId })
+
+    expect(aliceLocations).toHaveLength(1)
+    expect(aliceLocations[0].id).toBe(locationId)
+    expect(aliceLocations[0].user_id).toBe(aliceId)
+    expect(bobLocations).toEqual([])
+    expect(bobLookup).toBeNull()
   })
 
-  describe('signOut', () => {
-    test('returns success', async () => {
-      const result = await t.mutation(api.sessions.signOut, {})
-      expect(result).toHaveProperty('success', true)
+  test('location-linked mutations enforce ownership', async () => {
+    const t = convexTest(schema, modules)
+    const aliceId = await createTestUser(t, 'alice@example.com')
+    const bobId = await createTestUser(t, 'bob@example.com')
+
+    const locationId = await asUser(t, aliceId).mutation(publicApi.locationsMutations.create, {
+      name: 'Alice Site',
+      latitude: 10,
+      longitude: 20,
     })
+
+    await expect(asUser(t, bobId).mutation(publicApi.capturesMutations.create, {
+      location_id: locationId,
+    })).rejects.toThrow('Location not found')
+
+    await expect(asUser(t, bobId).mutation(publicApi.schedules.create, {
+      location_id: locationId,
+      frequency: 'daily',
+    })).rejects.toThrow('Location not found')
+
+    await expect(asUser(t, bobId).mutation(publicApi.alerts.create, {
+      location_id: locationId,
+      rule_type: 'change',
+      name: 'Watch changes',
+    })).rejects.toThrow('Location not found')
   })
 })

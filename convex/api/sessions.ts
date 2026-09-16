@@ -1,69 +1,30 @@
-import { query, mutation } from '../_generated/server'
-import { v } from 'convex/values'
+import { query } from '../_generated/server'
+import { getAuthUserId } from '@convex-dev/auth/server'
 
 export const currentUser = query({
   args: {},
-  handler: async () => {
-    return null
-  },
-})
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) {
+      return null
+    }
 
-export const signIn = mutation({
-  args: {
-    email: v.string(),
-    password: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query('users')
-      .withIndex('by_email', (q) => q.eq('email', args.email))
-      .first()
-
+    const user = await ctx.db.get(userId)
     if (!user) {
-      throw new Error('Invalid email or password')
+      return null
     }
 
-    return { 
-      success: true, 
-      userId: user._id,
-      email: user.email,
-      username: user.username,
+    const email = user.email ?? ''
+    const username = user.username ?? user.name ?? email.split('@')[0] ?? 'user'
+
+    return {
+      id: user._id,
+      email,
+      username,
+      full_name: user.fullName ?? user.name ?? username,
+      role: user.role ?? 'operator',
+      is_active: user.isActive ?? true,
+      created_at: user.createdAt ? new Date(user.createdAt).toISOString() : null,
     }
-  },
-})
-
-export const signUp = mutation({
-  args: {
-    email: v.string(),
-    username: v.string(),
-    password: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query('users')
-      .withIndex('by_email', (q) => q.eq('email', args.email))
-      .first()
-    
-    if (existing) {
-      throw new Error('Email already registered')
-    }
-
-    const userId = await ctx.db.insert('users', {
-      email: args.email,
-      username: args.username,
-      fullName: undefined,
-      role: 'operator',
-      isActive: true,
-      createdAt: Date.now(),
-    })
-
-    return { success: true, userId }
-  },
-})
-
-export const signOut = mutation({
-  args: {},
-  handler: async () => {
-    return { success: true }
   },
 })

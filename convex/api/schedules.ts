@@ -1,10 +1,15 @@
 import { query, mutation } from '../_generated/server'
 import { v } from 'convex/values'
+import { requireOwnedLocation, requireUserId } from './authHelpers'
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const schedules = await ctx.db.query('schedules').collect()
+    const userId = await requireUserId(ctx)
+    const schedules = await ctx.db
+      .query('schedules')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(100)
 
     return schedules.map((s) => ({
       id: s._id,
@@ -30,8 +35,9 @@ export const create = mutation({
     capture_style: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const { userId } = await requireOwnedLocation(ctx, args.location_id)
     const scheduleId = await ctx.db.insert('schedules', {
-      userId: '' as any,
+      userId,
       locationId: args.location_id,
       frequency: args.frequency,
       captureResolution: args.capture_resolution ?? 'standard',

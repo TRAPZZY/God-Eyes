@@ -13,10 +13,10 @@ import {
 } from 'lucide-react'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+const api = convexApi.api as any
 import type { BackendLocation, BackendChange } from '../../convexref'
 import { severityColors } from '../../constants/ui'
-import { csvEscape } from '../../constants/csv'
+import { csvEscape, parseCsvRows } from '../../constants/csv'
 
 export default function Dashboard() {
   const [importError, setImportError] = useState<string | null>(null)
@@ -74,32 +74,56 @@ export default function Dashboard() {
       return
     }
     const text = await file.text()
-    const lines = text.split('\n').filter((l) => l.trim())
-    if (lines.length < 2) return
-    const headers = lines[0].split(',').map((h) => h.replace(/"/g, '').trim())
+    const rows = parseCsvRows(text)
+    if (rows.length < 2) {
+      setImportError('CSV must include a header row and at least one location.')
+      return
+    }
+    const headers = rows[0]
     const nameIdx = headers.findIndex((h) => h.toLowerCase().includes('name'))
     const latIdx = headers.findIndex((h) => h.toLowerCase().includes('lat'))
     const lngIdx = headers.findIndex((h) => h.toLowerCase().includes('lng') || h.toLowerCase().includes('lon'))
     const addrIdx = headers.findIndex((h) => h.toLowerCase().includes('address'))
-    if (nameIdx < 0 || latIdx < 0 || lngIdx < 0) return
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map((v) => v.replace(/"/g, '').trim())
+    if (nameIdx < 0 || latIdx < 0 || lngIdx < 0) {
+      setImportError('CSV must include name, latitude, and longitude columns.')
+      return
+    }
+
+    let imported = 0
+    for (let i = 1; i < rows.length; i += 1) {
+      const values = rows[i]
+      const name = values[nameIdx]?.trim()
+      const latitude = Number(values[latIdx])
+      const longitude = Number(values[lngIdx])
+      if (!name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        continue
+      }
       try {
         await createLocation({
-          name: values[nameIdx],
-          latitude: parseFloat(values[latIdx]),
-          longitude: parseFloat(values[lngIdx]),
+          name,
+          latitude,
+          longitude,
           address: addrIdx >= 0 ? values[addrIdx] : undefined,
         })
+        imported += 1
       } catch {
         console.error(`Failed to import row ${i}`)
       }
+    }
+    if (imported === 0) {
+      setImportError('No valid locations were found in this CSV.')
+      return
     }
     e.target.value = ''
   }
 
   const systemHealthy = health?.status === 'healthy'
   const recentChanges = (changes || []).slice(0, 5)
+  const totalLocations = stats?.total_locations || 0
+  const monitoredLocations = stats?.monitored_locations || 0
+  const monitoringCoverage = totalLocations > 0
+    ? `${Math.round((monitoredLocations / totalLocations) * 100)}%`
+    : '0%'
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -107,17 +131,17 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-white">Mission Dashboard</h1>
+            <h1 className="text-2xl font-bold text-white">Workspace Dashboard</h1>
             <span className={`px-2 py-0.5 border rounded text-[10px] font-mono uppercase tracking-wider ${
               systemHealthy
                 ? 'bg-green-500/10 border-green-500/20 text-green-400'
                 : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
             }`}>
-              {systemHealthy ? 'All Systems Nominal' : 'System Degraded'}
+              {systemHealthy ? 'Data connected' : 'Connection issue'}
             </span>
           </div>
           <p className="text-sm text-gray-500 font-mono">
-            Last sync: {stats?.last_sync ? new Date(stats.last_sync).toLocaleString('en-US', { timeZone: 'UTC' }) : 'N/A'}
+            Last checked: {stats?.last_sync ? new Date(stats.last_sync).toLocaleString('en-US', { timeZone: 'UTC' }) : 'N/A'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -172,9 +196,9 @@ export default function Dashboard() {
         />
         <StatCard
           icon={<Shield className="w-5 h-5" />}
-          label="System Uptime"
-          value={stats?.system_uptime || '0%'}
-          subtext={`${stats?.active_alerts || 0} active alerts`}
+          label="Monitoring Coverage"
+          value={monitoringCoverage}
+          subtext={`${monitoredLocations} of ${totalLocations} active`}
           color="text-green-400"
           accent="from-green-500/20 to-green-600/5"
         />
@@ -231,13 +255,13 @@ export default function Dashboard() {
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <Activity className="w-4 h-4 text-green-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">System Status</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Workspace Status</h2>
           </div>
           <div className="divide-y divide-gray-800/30">
-            <SystemStatusItem service="API Server" status={systemHealthy ? 'online' : 'degraded'} latency="<50ms" />
-            <SystemStatusItem service="Database" status={systemHealthy ? 'online' : 'unknown'} latency={systemHealthy ? '<10ms' : '—'} />
-            <SystemStatusItem service="Capture Engine" status={systemHealthy ? 'ready' : 'unknown'} latency="—" />
-            <SystemStatusItem service="Change Detection" status={systemHealthy ? 'ready' : 'unknown'} latency="—" />
+            <SystemStatusItem label="Backend connection" status={systemHealthy ? 'connected' : 'checking'} detail={health?.service || 'Convex'} tone={systemHealthy ? 'ok' : 'warn'} />
+            <SystemStatusItem label="Saved locations" status={`${totalLocations} total`} detail={`${monitoredLocations} monitored`} tone={totalLocations > 0 ? 'ok' : 'muted'} />
+            <SystemStatusItem label="Imagery captures" status={`${stats?.total_captures || 0} stored`} detail="From active schedules" tone={(stats?.total_captures || 0) > 0 ? 'ok' : 'muted'} />
+            <SystemStatusItem label="Alert rules" status={`${stats?.active_alerts || 0} active`} detail="User configured" tone={(stats?.active_alerts || 0) > 0 ? 'warn' : 'muted'} />
           </div>
         </div>
       </div>
@@ -318,24 +342,43 @@ function StatCard({
   )
 }
 
-function SystemStatusItem({ service, status, latency }: { service: string; status: string; latency: string }) {
+function SystemStatusItem({
+  label,
+  status,
+  detail,
+  tone,
+}: {
+  label: string
+  status: string
+  detail: string
+  tone: 'ok' | 'warn' | 'muted'
+}) {
+  const toneClasses = {
+    ok: {
+      dot: 'bg-green-400',
+      badge: 'text-green-400 bg-green-400/10',
+    },
+    warn: {
+      dot: 'bg-yellow-400',
+      badge: 'text-yellow-400 bg-yellow-400/10',
+    },
+    muted: {
+      dot: 'bg-gray-500',
+      badge: 'text-gray-400 bg-gray-400/10',
+    },
+  }[tone]
+
   return (
     <div className="px-5 py-3 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className={`w-2 h-2 rounded-full ${
-          status === 'online' ? 'bg-green-400' :
-          status === 'degraded' ? 'bg-yellow-400 animate-pulse' :
-          'bg-red-400'
-        }`} />
-        <span className="text-sm text-gray-300">{service}</span>
+        <div className={`w-2 h-2 rounded-full ${toneClasses.dot}`} />
+        <div>
+          <span className="text-sm text-gray-300">{label}</span>
+          <p className="text-xs text-gray-600">{detail}</p>
+        </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-xs font-mono text-gray-500">{latency}</span>
-        <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${
-          status === 'online' ? 'text-green-400 bg-green-400/10' :
-          status === 'degraded' ? 'text-yellow-400 bg-yellow-400/10' :
-          'text-red-400 bg-red-400/10'
-        }`}>
+        <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${toneClasses.badge}`}>
           {status}
         </span>
       </div>

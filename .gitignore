@@ -19,6 +19,7 @@ build/
 
 # Node
 node_modules/
+.npm-cache/
 frontend/dist/
 frontend/.vite/
 

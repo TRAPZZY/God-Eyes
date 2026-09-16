@@ -1,5 +1,6 @@
 import { query } from '../_generated/server'
 import { v } from 'convex/values'
+import { limitPage, requireOwnedLocation, requireUserId } from './authHelpers'
 
 export const list = query({
   args: {
@@ -7,16 +8,16 @@ export const list = query({
     per_page: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const captures = await ctx.db.query('captures').collect()
-
-    const sorted = captures.sort(
-      (a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime()
-    )
-
+    const userId = await requireUserId(ctx)
     const page = args.page ?? 1
-    const perPage = args.per_page ?? 20
+    const perPage = limitPage(args.per_page)
     const start = (page - 1) * perPage
-    const paginated = sorted.slice(start, start + perPage)
+    const captures = await ctx.db
+      .query('captures')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .order('desc')
+      .take(start + perPage)
+    const paginated = captures.slice(start, start + perPage)
 
     return {
       captures: paginated.map((c) => ({
@@ -34,7 +35,7 @@ export const list = query({
         image_metadata: c.imageMetadata ?? null,
         created_at: new Date(c.createdAt).toISOString(),
       })),
-      total: sorted.length,
+      total: captures.length,
     }
   },
 })
@@ -42,13 +43,14 @@ export const list = query({
 export const byLocation = query({
   args: { locationId: v.id('locations') },
   handler: async (ctx, args) => {
+    await requireOwnedLocation(ctx, args.locationId)
     const captures = await ctx.db
       .query('captures')
       .withIndex('by_location', (q) => q.eq('locationId', args.locationId))
-      .collect()
+      .order('desc')
+      .take(100)
 
     return captures
-      .sort((a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime())
       .map((c) => ({
         id: c._id,
         location_id: c.locationId,

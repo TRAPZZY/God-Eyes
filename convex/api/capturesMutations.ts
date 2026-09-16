@@ -1,5 +1,6 @@
 import { mutation } from '../_generated/server'
 import { v } from 'convex/values'
+import { requireOwnedLocation } from './authHelpers'
 
 export const create = mutation({
   args: {
@@ -8,13 +9,10 @@ export const create = mutation({
     style: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const location = await ctx.db.get(args.location_id)
-    if (!location) {
-      throw new Error('Location not found')
-    }
+    const { userId, location } = await requireOwnedLocation(ctx, args.location_id)
 
     const captureId = await ctx.db.insert('captures', {
-      userId: '' as any,
+      userId,
       locationId: args.location_id,
       imageUrl: undefined,
       imagePath: undefined,

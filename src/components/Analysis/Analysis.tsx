@@ -23,7 +23,7 @@ import {
 } from 'recharts'
 import { useQuery } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+const api = convexApi.api as any
 import type { BackendLocation, BackendChange, BackendSchedule } from '../../convexref'
 import { severityColors } from '../../constants/ui'
 

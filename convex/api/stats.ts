@@ -1,12 +1,26 @@
 import { query } from '../_generated/server'
+import { requireUserId } from './authHelpers'
 
 export const dashboard = query({
   args: {},
   handler: async (ctx) => {
-    const locations = await ctx.db.query('locations').collect()
-    const schedules = await ctx.db.query('schedules').collect()
-    const changes = await ctx.db.query('changes').collect()
-    const alerts = await ctx.db.query('alertRules').collect()
+    const userId = await requireUserId(ctx)
+    const locations = await ctx.db
+      .query('locations')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(100)
+    const schedules = await ctx.db
+      .query('schedules')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(100)
+    const changes = await ctx.db
+      .query('changes')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(100)
+    const alerts = await ctx.db
+      .query('alertRules')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .take(100)
 
     const monitoredCount = locations.filter((l) => l.isMonitored).length
     const activeSchedules = schedules.filter((s) => s.isActive).length

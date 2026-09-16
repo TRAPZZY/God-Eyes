@@ -1,5 +1,6 @@
 import { mutation } from '../_generated/server'
 import { v } from 'convex/values'
+import { requireOwnedLocation, requireUserId } from './authHelpers'
 
 export const create = mutation({
   args: {
@@ -12,8 +13,9 @@ export const create = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx)
     const locationId = await ctx.db.insert('locations', {
-      userId: '' as any,
+      userId,
       name: args.name,
       latitude: args.latitude,
       longitude: args.longitude,
@@ -42,10 +44,7 @@ export const update = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const location = await ctx.db.get(args.id)
-    if (!location) {
-      throw new Error('Location not found')
-    }
+    await requireOwnedLocation(ctx, args.id)
 
     await ctx.db.patch(args.id, {
       ...(args.name !== undefined && { name: args.name }),
@@ -64,10 +63,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('locations') },
   handler: async (ctx, args) => {
-    const location = await ctx.db.get(args.id)
-    if (!location) {
-      throw new Error('Location not found')
-    }
+    await requireOwnedLocation(ctx, args.id)
 
     await ctx.db.delete(args.id)
   },
@@ -76,10 +72,7 @@ export const remove = mutation({
 export const toggleMonitor = mutation({
   args: { id: v.id('locations'), isMonitored: v.boolean() },
   handler: async (ctx, args) => {
-    const location = await ctx.db.get(args.id)
-    if (!location) {
-      throw new Error('Location not found')
-    }
+    await requireOwnedLocation(ctx, args.id)
 
     await ctx.db.patch(args.id, {
       isMonitored: args.isMonitored,

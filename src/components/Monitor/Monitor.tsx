@@ -15,8 +15,9 @@ import {
 import mapboxgl from 'mapbox-gl'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+const api = convexApi.api as any
 import type { BackendLocation, BackendSchedule } from '../../convexref'
+import { createLocationPopupHtml } from './locationPopup'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || ''
 
@@ -70,15 +71,12 @@ export default function Monitor() {
 
       const marker = new mapboxgl.Marker(el)
         .setLngLat([loc.longitude, loc.latitude])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(`
-            <div style="font-family: 'Inter', sans-serif; padding: 4px; color: #f1f5f9; background: #0f172a; border-radius: 6px;">
-              <p style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">${loc.name}</p>
-              <p style="font-size: 11px; color: #94a3b8; font-family: monospace;">${loc.latitude}, ${loc.longitude}</p>
-              <p style="font-size: 11px; color: #64748b; margin-top: 2px;">${loc.is_monitored ? 'Monitored' : 'Idle'}</p>
-            </div>
-          `)
-        )
+        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(createLocationPopupHtml({
+          name: loc.name,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          isMonitored: loc.is_monitored,
+        })))
         .addTo(map.current!)
 
       markersRef.current.push(marker)

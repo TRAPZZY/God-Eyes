@@ -15,9 +15,10 @@ import {
   RefreshCw,
   Settings as SettingsIcon,
 } from 'lucide-react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery } from 'convex/react'
+import { useAuthActions } from '@convex-dev/auth/react'
 import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+const api = convexApi.api as any
 
 export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -30,7 +31,7 @@ export default function Settings() {
 
   const user = useQuery(api.sessions.currentUser)
   const health = useQuery(api.stats.health)
-  const signOut = useMutation(api.sessions.signOut)
+  const { signOut } = useAuthActions()
 
   useEffect(() => {
     const interval = setInterval(() => {}, 30000)
@@ -39,7 +40,7 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     try {
-      await signOut({})
+      await signOut()
     } catch {
       // continue anyway
     }
@@ -72,9 +73,9 @@ export default function Settings() {
       <div>
         <div className="flex items-center gap-3 mb-1">
           <SettingsIcon className="w-6 h-6 text-gray-400" />
-          <h1 className="text-2xl font-bold text-white">System Settings</h1>
+          <h1 className="text-2xl font-bold text-white">Workspace Settings</h1>
         </div>
-        <p className="text-sm text-gray-500 font-mono">Manage your account, security, and system configuration</p>
+        <p className="text-sm text-gray-500 font-mono">Manage your account, security, and workspace configuration</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -82,7 +83,7 @@ export default function Settings() {
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <User className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Operator Profile</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">User Profile</h2>
           </div>
           <div className="p-5 space-y-4">
             <div className="flex items-center gap-4 mb-6">
@@ -102,7 +103,7 @@ export default function Settings() {
 
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b border-gray-800/30">
-                <span className="text-xs text-gray-500 font-mono uppercase">Operator ID</span>
+                <span className="text-xs text-gray-500 font-mono uppercase">User ID</span>
                 <span className="text-xs text-gray-300 font-mono">{user?.id ? String(user.id).slice(0, 8) : '—'}...</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
@@ -110,11 +111,11 @@ export default function Settings() {
                 <span className="text-xs text-gray-300 font-mono">{user?.email || '—'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
-                <span className="text-xs text-gray-500 font-mono uppercase">Callsign</span>
+                <span className="text-xs text-gray-500 font-mono uppercase">Display name</span>
                 <span className="text-xs text-gray-300 font-mono">{user?.username || '—'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-800/30">
-                <span className="text-xs text-gray-500 font-mono uppercase">Clearance</span>
+                <span className="text-xs text-gray-500 font-mono uppercase">Role</span>
                 <span className={`text-xs font-mono uppercase ${roleColors[user?.role || 'operator']?.split(' ')[0]}`}>
                   {user?.role || 'operator'}
                 </span>
@@ -127,7 +128,7 @@ export default function Settings() {
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <Key className="w-4 h-4 text-yellow-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Change Access Code</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Change Password</h2>
           </div>
           <div className="p-5 space-y-4">
             {passwordMsg && (
@@ -147,7 +148,7 @@ export default function Settings() {
 
             <div>
               <label htmlFor="settings-current-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Current Access Code
+                Current Password
               </label>
               <div className="relative">
                 <input
@@ -156,7 +157,7 @@ export default function Settings() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-10 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 font-mono text-sm"
-                  placeholder="Enter current code"
+                  placeholder="Enter current password"
                 />
                 <button
                   type="button"
@@ -171,7 +172,7 @@ export default function Settings() {
 
             <div>
               <label htmlFor="settings-new-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                New Access Code
+                New Password
               </label>
               <div className="relative">
                 <input
@@ -195,7 +196,7 @@ export default function Settings() {
 
             <div>
               <label htmlFor="settings-confirm-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Confirm New Access Code
+                Confirm New Password
               </label>
               <div className="relative">
                 <input
@@ -204,7 +205,7 @@ export default function Settings() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-10 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 font-mono text-sm"
-                  placeholder="Re-enter new code"
+                  placeholder="Re-enter new password"
                 />
                 <button
                   type="button"
@@ -218,7 +219,7 @@ export default function Settings() {
             </div>
 
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-400 text-xs">
-              Password changes via Convex Auth require additional setup. Use your GitHub OAuth for now.
+              Password changes are disabled until the authentication upgrade is complete.
             </div>
           </div>
         </div>
@@ -227,7 +228,7 @@ export default function Settings() {
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <Server className="w-4 h-4 text-green-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">System Connection</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Backend Connection</h2>
           </div>
           <div className="p-5 space-y-4">
             <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
@@ -270,7 +271,7 @@ export default function Settings() {
         <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
             <Globe className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">System Information</h2>
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Workspace Information</h2>
           </div>
           <div className="p-5 space-y-3">
             <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
@@ -284,7 +285,7 @@ export default function Settings() {
               <Clock className="w-5 h-5 text-purple-400" />
               <div>
                 <p className="text-sm text-white">Authentication</p>
-                <p className="text-xs text-gray-500 font-mono">Convex Auth + GitHub OAuth</p>
+                <p className="text-xs text-gray-500 font-mono">Project session API</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
@@ -297,8 +298,8 @@ export default function Settings() {
             <div className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg">
               <Globe className="w-5 h-5 text-cyan-400" />
               <div>
-                <p className="text-sm text-white">Version</p>
-                <p className="text-xs text-gray-500 font-mono">v2.0.0</p>
+                <p className="text-sm text-white">Release track</p>
+                <p className="text-xs text-gray-500 font-mono">Security upgrade in progress</p>
               </div>
             </div>
           </div>

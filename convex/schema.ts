@@ -1,16 +1,26 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+import { authTables } from '@convex-dev/auth/server'
 
 export default defineSchema({
+  ...authTables,
+
   users: defineTable({
-    email: v.string(),
-    username: v.string(),
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    username: v.optional(v.string()),
     fullName: v.optional(v.string()),
-    role: v.union(v.literal('operator'), v.literal('analyst'), v.literal('admin'), v.literal('superadmin')),
-    isActive: v.boolean(),
-    createdAt: v.number(),
+    role: v.optional(v.union(v.literal('operator'), v.literal('analyst'), v.literal('admin'), v.literal('superadmin'))),
+    isActive: v.optional(v.boolean()),
+    createdAt: v.optional(v.number()),
   })
-    .index('by_email', ['email'])
+    .index('email', ['email'])
+    .index('phone', ['phone'])
     .index('by_username', ['username']),
 
   locations: defineTable({
@@ -27,6 +37,7 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
+    .index('by_user_and_monitored', ['userId', 'isMonitored'])
     .index('by_monitored', ['isMonitored']),
 
   captures: defineTable({
@@ -62,8 +73,10 @@ export default defineSchema({
     alertSent: v.boolean(),
     reviewed: v.boolean(),
   })
+    .index('by_user', ['userId'])
     .index('by_location', ['locationId'])
     .index('by_severity', ['severity'])
+    .index('by_user_and_detected_at', ['userId', 'detectedAt'])
     .index('by_detected_at', ['detectedAt']),
 
   schedules: defineTable({

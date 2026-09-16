@@ -1,12 +1,17 @@
 import { query } from '../_generated/server'
+import { requireUserId } from './authHelpers'
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const changes = await ctx.db.query('changes').collect()
+    const userId = await requireUserId(ctx)
+    const changes = await ctx.db
+      .query('changes')
+      .withIndex('by_user_and_detected_at', (q) => q.eq('userId', userId))
+      .order('desc')
+      .take(100)
 
     return changes
-      .sort((a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime())
       .map((c) => ({
         id: c._id,
         location_id: c.locationId,

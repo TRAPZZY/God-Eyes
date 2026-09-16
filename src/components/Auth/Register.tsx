@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { Loader2, Shield, UserPlus, Crosshair } from 'lucide-react'
-import { useMutation } from 'convex/react'
-import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Eye, Loader2, UserPlus } from 'lucide-react'
+import { useAuthActions } from '@convex-dev/auth/react'
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -19,45 +17,50 @@ export default function Register() {
   const [isLoading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const signUp = useMutation(api.sessions.signUp)
+  const { signIn } = useAuthActions()
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setValidationError(null)
     setError(null)
 
     if (!form.email.includes('@')) {
-      setValidationError('Invalid email address')
+      setValidationError('Enter a valid email address.')
       return
     }
     if (form.username.length < 3) {
-      setValidationError('Callsign must be at least 3 characters')
+      setValidationError('Your display name must have at least 3 characters.')
       return
     }
     if (form.password.length < 8) {
-      setValidationError('Access code must be at least 8 characters')
+      setValidationError('Your password must have at least 8 characters.')
       return
     }
     if (form.password !== form.confirmPassword) {
-      setValidationError('Access codes do not match')
+      setValidationError('The passwords do not match.')
       return
     }
 
     setLoading(true)
     try {
-      await signUp({
+      const authParams = {
         email: form.email,
         username: form.username,
         password: form.password,
-        fullName: form.full_name || undefined,
+        flow: 'signUp',
+        ...(form.full_name ? { fullName: form.full_name } : {}),
+      }
+
+      await signIn('password', {
+        ...authParams,
       })
       navigate('/')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Registration failed'
+      const message = err instanceof Error ? err.message : 'Unable to create your account right now.'
       setError(message)
     } finally {
       setLoading(false)
@@ -65,150 +68,142 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/50 via-gray-950 to-blue-950/50 pointer-events-none" />
-
-      <div className={`relative z-10 w-full max-w-md px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <UserPlus className="w-10 h-10 text-white" />
-            </div>
+    <div className="auth-shell min-h-screen">
+      <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_30rem]">
+        <section className="hidden min-h-screen flex-col justify-between px-12 py-12 lg:flex xl:px-16 xl:py-14">
+          <div className="flex items-center gap-3 text-sm font-semibold tracking-tight text-white">
+            <span className="auth-mark flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 text-white">
+              <Eye className="h-5 w-5" />
+            </span>
+            God Eyes
           </div>
-          <h1 className="text-4xl font-black tracking-wider text-white mb-2">
-            GOD <span className="text-blue-400">EYES</span>
-          </h1>
-          <p className="text-sm font-medium tracking-widest text-blue-400/80 uppercase mb-3">
-            Operator Registration
+
+          <div className="max-w-xl pb-12">
+            <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-blue-300">Start with a workspace</p>
+            <h1 className="text-5xl font-semibold leading-[1.04] tracking-[-0.045em] text-stone-50 xl:text-6xl">
+              Keep the signal, leave out the noise.
+            </h1>
+            <p className="mt-6 max-w-md text-base leading-7 text-slate-400">
+              Create an account to organize the places you follow and the observations that matter to you.
+            </p>
+          </div>
+
+          <p className="max-w-sm text-xs leading-5 text-slate-500">
+            You can begin with a small set of locations and build a clearer history as your workspace grows.
           </p>
-        </div>
+        </section>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-800">
-            <Crosshair className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">New Operator Credentials</span>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {(error || validationError) && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                {validationError || error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="register-email" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Email Address
-              </label>
-              <input
-                id="register-email"
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono text-sm"
-                placeholder="operator@agency.gov"
-                required
-                autoComplete="email"
-              />
+        <main className="auth-panel flex min-h-screen items-center border-l border-white/[0.07] px-6 py-10 sm:px-10 lg:px-12">
+          <div className={`mx-auto w-full max-w-sm transition-all duration-500 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'}`}>
+            <div className="mb-10 flex items-center gap-3 lg:hidden">
+              <span className="auth-mark flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 text-white">
+                <Eye className="h-5 w-5" />
+              </span>
+              <span className="text-sm font-semibold text-white">God Eyes</span>
             </div>
 
-            <div>
-              <label htmlFor="register-callsign" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Callsign
-              </label>
-              <input
-                id="register-callsign"
-                type="text"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono text-sm"
-                placeholder="operator_callsign"
-                required
-              />
+            <div className="mb-8">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Create an account</p>
+              <h2 className="text-3xl font-semibold tracking-[-0.035em] text-stone-50">Set up your workspace</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400">A few details now give your account a clear, recognizable identity.</p>
             </div>
 
-            <div>
-              <label htmlFor="register-fullname" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Full Name (Optional)
-              </label>
-              <input
-                id="register-fullname"
-                type="text"
-                value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono text-sm"
-                placeholder="Full designation"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="register-password" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Access Code
-              </label>
-              <input
-                id="register-password"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono text-sm"
-                placeholder="Minimum 8 characters"
-                required
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="register-confirm" className="block text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
-                Confirm Access Code
-              </label>
-              <input
-                id="register-confirm"
-                type="password"
-                value={form.confirmPassword}
-                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/20 transition-all font-mono text-sm"
-                placeholder="Re-enter access code"
-                required
-                autoComplete="new-password"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg font-semibold hover:from-cyan-500 hover:to-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 active:scale-[0.98]"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Shield className="w-4 h-4" />
-                  Register Operator
-                </>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {(error || validationError) && (
+                <div role="alert" className="rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm leading-5 text-red-200">
+                  {validationError || error}
+                </div>
               )}
-            </button>
-          </form>
 
-          <p className="text-center text-gray-500 text-xs mt-6">
-            Already registered?{' '}
-            <Link to="/login" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">
-              Access Terminal
-            </Link>
-          </p>
-        </div>
+              <div>
+                <label htmlFor="register-email" className="mb-2 block text-sm font-medium text-slate-200">Email address</label>
+                <input
+                  id="register-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
 
-        <div className="text-center mt-8">
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-600 font-mono">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span>SYSTEM OPERATIONAL</span>
-            <span className="text-gray-700">|</span>
-            <span>v2.0.0</span>
+              <div>
+                <label htmlFor="register-display-name" className="mb-2 block text-sm font-medium text-slate-200">Display name</label>
+                <input
+                  id="register-display-name"
+                  type="text"
+                  value={form.username}
+                  onChange={(event) => setForm({ ...form, username: event.target.value })}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="How you want to appear"
+                  required
+                  autoComplete="username"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="register-fullname" className="mb-2 block text-sm font-medium text-slate-200">Full name <span className="font-normal text-slate-500">(optional)</span></label>
+                <input
+                  id="register-fullname"
+                  type="text"
+                  value={form.full_name}
+                  onChange={(event) => setForm({ ...form, full_name: event.target.value })}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="Your name"
+                  autoComplete="name"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="register-password" className="mb-2 block text-sm font-medium text-slate-200">Password</label>
+                <input
+                  id="register-password"
+                  type="password"
+                  value={form.password}
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="At least 8 characters"
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="register-confirm" className="mb-2 block text-sm font-medium text-slate-200">Confirm password</label>
+                <input
+                  id="register-confirm"
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })}
+                  className="w-full rounded-xl border border-white/[0.11] bg-white/[0.045] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400 focus:bg-white/[0.07] focus:ring-4 focus:ring-blue-500/10"
+                  placeholder="Re-enter your password"
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                {isLoading ? 'Creating account…' : 'Create account'}
+              </button>
+            </form>
+
+            <div className="mt-8 border-t border-white/[0.08] pt-6">
+              <p className="text-sm text-slate-400">
+                Already have an account?{' '}
+                <Link to="/login" className="inline-flex items-center gap-1 font-medium text-blue-300 transition hover:text-blue-200">
+                  Sign in <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </p>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   )

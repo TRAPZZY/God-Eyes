@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useQuery } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
-const api = convexApi as any
+const api = convexApi.api as any
 import type { BackendLocation, BackendCapture } from '../../convexref'
 
 const PAGE_SIZE = 20
