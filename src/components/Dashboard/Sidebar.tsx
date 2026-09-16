@@ -23,11 +23,11 @@ import { api as convexApi } from '../../../convex/_generated/api'
 const api = convexApi.api as any
 
 const navItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard', section: 'Overview' },
-  { path: '/monitor', icon: Satellite, label: 'Monitor', section: 'Operations' },
-  { path: '/timeline', icon: Clock, label: 'Timeline', section: 'Operations' },
-  { path: '/analysis', icon: BarChart3, label: 'Analysis', section: 'Intelligence' },
-  { path: '/settings', icon: Settings, label: 'Settings', section: 'System' },
+  { path: '/', icon: LayoutDashboard, label: 'Overview', section: 'Workspace' },
+  { path: '/monitor', icon: Satellite, label: 'Locations', section: 'Operations' },
+  { path: '/timeline', icon: Clock, label: 'Activity', section: 'Operations' },
+  { path: '/analysis', icon: BarChart3, label: 'Insights', section: 'Review' },
+  { path: '/settings', icon: Settings, label: 'Settings', section: 'Account' },
 ]
 
 export default function Sidebar() {
@@ -49,14 +49,14 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`relative flex flex-col bg-gray-950/80 backdrop-blur-xl border-r border-gray-800/50 transition-all duration-300 ${
+      className={`relative flex flex-col border-r border-white/[0.06] bg-slate-950/90 shadow-2xl shadow-black/20 backdrop-blur-xl transition-all duration-300 ${
         collapsed ? 'w-[72px]' : 'w-64'
       }`}
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className="absolute -right-3 top-7 w-6 h-6 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors z-20 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="absolute -right-3 top-7 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-slate-900 transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {collapsed ? (
           <ChevronRight className="w-3 h-3 text-gray-400" />
@@ -65,7 +65,7 @@ export default function Sidebar() {
         )}
       </button>
 
-      <div className={`p-5 border-b border-gray-800/50 ${collapsed ? 'flex justify-center' : ''}`}>
+      <div className={`border-b border-white/[0.06] p-5 ${collapsed ? 'flex justify-center' : ''}`}>
         <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0">
             <div className="absolute inset-0 bg-blue-500/20 rounded-lg blur-sm" />
@@ -75,10 +75,10 @@ export default function Sidebar() {
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-lg font-black tracking-wider text-white">
-                GOD <span className="text-blue-400">EYES</span>
+              <h1 className="text-lg font-semibold tracking-tight text-white">
+                God <span className="text-blue-300">Eyes</span>
               </h1>
-              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.15em]">Satellite Intelligence</p>
+              <p className="text-xs text-slate-500">Operations workspace</p>
             </div>
           )}
         </div>
@@ -91,7 +91,7 @@ export default function Sidebar() {
             <div key={item.path}>
               {i === 0 || navItems[i - 1].section !== item.section ? (
                 !collapsed && (
-                  <p className="text-[10px] font-mono text-gray-600 uppercase tracking-[0.2em] px-3 pt-3 pb-1">
+                  <p className="px-3 pb-1 pt-3 text-[11px] font-medium text-slate-600">
                     {item.section}
                   </p>
                 )
@@ -103,8 +103,8 @@ export default function Sidebar() {
                   collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'
                 } ${
                   isActive
-                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                    : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 border border-transparent'
+                    ? 'bg-blue-500/10 text-blue-300 border border-blue-400/20 shadow-sm shadow-blue-950/30'
+                    : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-100 border border-transparent'
                 }`}
                 title={collapsed ? item.label : undefined}
               >
@@ -121,21 +121,21 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-gray-800/50 space-y-1">
+      <div className="space-y-1 border-t border-white/[0.06] p-3">
         <button
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          className={`flex items-center gap-3 rounded-lg transition-all text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 border border-transparent ${
+          className={`flex items-center gap-3 rounded-lg border border-transparent text-slate-400 transition-all hover:bg-white/[0.04] hover:text-slate-100 ${
             collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'
           }`}
           title={collapsed ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : undefined}
         >
           {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
-          {!collapsed && <span className="text-sm font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+          {!collapsed && <span className="text-sm font-medium">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
         </button>
 
         {!collapsed && user && (
-          <div className="px-3 py-3 bg-gray-900/50 rounded-lg border border-gray-800/50">
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/30 to-cyan-500/30 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
                 <User className="w-4 h-4 text-blue-400" />
@@ -146,9 +146,9 @@ export default function Sidebar() {
               </div>
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${roleColors.operator}`}>
+              <span className={`rounded border px-2 py-0.5 text-[11px] font-medium ${roleColors.operator}`}>
                 <Shield className="w-2.5 h-2.5 inline mr-1" />
-                operator
+                Team member
               </span>
             </div>
           </div>
@@ -156,14 +156,14 @@ export default function Sidebar() {
 
         <button
           onClick={handleLogout}
-          aria-label="Disconnect and log out"
-          className={`flex items-center gap-3 rounded-lg transition-all text-gray-400 hover:bg-red-500/10 hover:text-red-400 border border-transparent ${
+          aria-label="Sign out"
+          className={`flex items-center gap-3 rounded-lg border border-transparent text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-300 ${
             collapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'
           }`}
           title={collapsed ? 'Logout' : undefined}
         >
           <LogOut className="w-[18px] h-[18px]" />
-          {!collapsed && <span className="text-sm font-medium">Disconnect</span>}
+          {!collapsed && <span className="text-sm font-medium">Sign out</span>}
         </button>
       </div>
     </aside>

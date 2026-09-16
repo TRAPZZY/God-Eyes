@@ -32,13 +32,13 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <div className="relative w-16 h-16 mx-auto mb-4">
+          <div className="relative mx-auto mb-4 h-12 w-12">
             <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full" />
             <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
           </div>
-          <p className="text-sm font-mono text-gray-500 uppercase tracking-wider">Initializing systems...</p>
+          <p className="text-sm text-slate-400">Loading workspace...</p>
         </div>
       </div>
     )
@@ -126,22 +126,25 @@ export default function Dashboard() {
     : '0%'
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-5 shadow-2xl shadow-black/10 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-white">Workspace Dashboard</h1>
-            <span className={`px-2 py-0.5 border rounded text-[10px] font-mono uppercase tracking-wider ${
+            <h1 className="text-2xl font-semibold tracking-tight text-white">Operations overview</h1>
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
               systemHealthy
                 ? 'bg-green-500/10 border-green-500/20 text-green-400'
                 : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
             }`}>
-              {systemHealthy ? 'Data connected' : 'Connection issue'}
+              {systemHealthy ? 'Live data' : 'Checking connection'}
             </span>
           </div>
-          <p className="text-sm text-gray-500 font-mono">
-            Last checked: {stats?.last_sync ? new Date(stats.last_sync).toLocaleString('en-US', { timeZone: 'UTC' }) : 'N/A'}
+          <p className="text-sm text-slate-400">
+            Monitor locations, imagery captures, and recent findings from one secure workspace.
+            <span className="ml-2 text-slate-500">
+              Updated {stats?.last_sync ? new Date(stats.last_sync).toLocaleString('en-US', { timeZone: 'UTC' }) : 'just now'}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -149,14 +152,14 @@ export default function Dashboard() {
             onClick={handleExportCSV}
             disabled={!locations || locations.length === 0}
             aria-label="Export locations as CSV"
-            className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition-all hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
           >
             <Download className="w-4 h-4" />
-            Export
+            Export CSV
           </button>
-          <label className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/50 hover:text-white transition-all flex items-center gap-2 text-sm cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-300 transition-all hover:bg-white/[0.08] hover:text-white">
             <Upload className="w-4 h-4" aria-hidden="true" />
-            Import
+            Import CSV
             <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" aria-label="Import locations from CSV file" />
           </label>
         </div>
@@ -172,31 +175,31 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<MapPin className="w-5 h-5" />}
-          label="Active Sites"
+          label="Monitored locations"
           value={stats?.monitored_locations || 0}
-          subtext={`of ${stats?.total_locations || 0} total`}
+          subtext={`${stats?.total_locations || 0} saved total`}
           color="text-blue-400"
           accent="from-blue-500/20 to-blue-600/5"
         />
         <StatCard
           icon={<Satellite className="w-5 h-5" />}
-          label="Total Captures"
+          label="Imagery records"
           value={stats?.total_captures || 0}
-          subtext="All-time imagery"
+          subtext="All-time captures"
           color="text-cyan-400"
           accent="from-cyan-500/20 to-cyan-600/5"
         />
         <StatCard
           icon={<AlertTriangle className="w-5 h-5" />}
-          label="High Severity"
+          label="Priority findings"
           value={stats?.high_severity_changes || 0}
-          subtext={`${stats?.total_changes || 0} total changes`}
+          subtext={`${stats?.total_changes || 0} findings total`}
           color="text-red-400"
           accent="from-red-500/20 to-red-600/5"
         />
         <StatCard
           icon={<Shield className="w-5 h-5" />}
-          label="Monitoring Coverage"
+          label="Coverage"
           value={monitoringCoverage}
           subtext={`${monitoredLocations} of ${totalLocations} active`}
           color="text-green-400"
@@ -207,13 +210,13 @@ export default function Dashboard() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Changes */}
-        <div className="lg:col-span-2 bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
+        <div className="lg:col-span-2 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm">
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Recent Change Detections</h2>
+              <h2 className="text-sm font-semibold text-white">Recent changes</h2>
             </div>
-            <span className="text-xs font-mono text-gray-500">{recentChanges.length} events</span>
+            <span className="text-xs text-slate-500">{recentChanges.length} events</span>
           </div>
           {recentChanges.length === 0 ? (
             <div className="px-5 py-12 text-center">
@@ -252,13 +255,13 @@ export default function Dashboard() {
         </div>
 
         {/* System Status */}
-        <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800/50 flex items-center gap-2">
+        <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm">
+          <div className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-4">
             <Activity className="w-4 h-4 text-green-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Workspace Status</h2>
+            <h2 className="text-sm font-semibold text-white">Workspace health</h2>
           </div>
           <div className="divide-y divide-gray-800/30">
-            <SystemStatusItem label="Backend connection" status={systemHealthy ? 'connected' : 'checking'} detail={health?.service || 'Convex'} tone={systemHealthy ? 'ok' : 'warn'} />
+            <SystemStatusItem label="Data service" status={systemHealthy ? 'connected' : 'checking'} detail={health?.service || 'God Eyes'} tone={systemHealthy ? 'ok' : 'warn'} />
             <SystemStatusItem label="Saved locations" status={`${totalLocations} total`} detail={`${monitoredLocations} monitored`} tone={totalLocations > 0 ? 'ok' : 'muted'} />
             <SystemStatusItem label="Imagery captures" status={`${stats?.total_captures || 0} stored`} detail="From active schedules" tone={(stats?.total_captures || 0) > 0 ? 'ok' : 'muted'} />
             <SystemStatusItem label="Alert rules" status={`${stats?.active_alerts || 0} active`} detail="User configured" tone={(stats?.active_alerts || 0) > 0 ? 'warn' : 'muted'} />
@@ -267,13 +270,13 @@ export default function Dashboard() {
       </div>
 
       {/* Monitored Locations */}
-      <div className="bg-gray-900/40 backdrop-blur-sm border border-gray-800/50 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-800/50 flex items-center justify-between">
+      <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-cyan-400" />
-            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Monitored Locations</h2>
+            <h2 className="text-sm font-semibold text-white">Locations</h2>
           </div>
-          <span className="text-xs font-mono text-gray-500">{locations?.length || 0} sites</span>
+          <span className="text-xs text-slate-500">{locations?.length || 0} sites</span>
         </div>
         {!locations || locations.length === 0 ? (
           <div className="px-5 py-12 text-center">
@@ -331,13 +334,13 @@ function StatCard({
   accent: string
 }) {
   return (
-    <div className={`bg-gradient-to-br ${accent} border border-gray-800/50 rounded-xl p-5 hover:border-gray-700/50 transition-all`}>
+    <div className={`rounded-2xl border border-white/[0.06] bg-gradient-to-br ${accent} p-5 transition-all hover:border-white/10`}>
       <div className="flex items-center justify-between mb-3">
         <div className={color}>{icon}</div>
       </div>
       <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{label}</p>
-      <p className="text-[10px] text-gray-600 font-mono mt-0.5">{subtext}</p>
+      <p className="mt-1 text-sm text-slate-300">{label}</p>
+      <p className="mt-0.5 text-xs text-slate-500">{subtext}</p>
     </div>
   )
 }
@@ -378,7 +381,7 @@ function SystemStatusItem({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${toneClasses.badge}`}>
+        <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${toneClasses.badge}`}>
           {status}
         </span>
       </div>

@@ -29,6 +29,7 @@ export default function Monitor() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [capturing, setCapturing] = useState<string | null>(null)
+  const [mapError, setMapError] = useState<string | null>(null)
   const [newLocation, setNewLocation] = useState({ name: '', latitude: '', longitude: '', address: '' })
 
   const locations = useQuery(api.locations.list) as BackendLocation[] | undefined
@@ -86,22 +87,30 @@ export default function Monitor() {
   useEffect(() => {
     if (map.current) return
     if (!mapboxgl.accessToken) return
+    if (!mapContainer.current) return
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current!,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-95.7129, 37.0902],
-      zoom: 3,
-      attributionControl: false,
-    })
+    try {
+      const nextMap = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [-95.7129, 37.0902],
+        zoom: 3,
+        attributionControl: false,
+      })
 
-    map.current.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right')
+      map.current = nextMap
+      setMapError(null)
 
-    map.current.on('load', () => {
-      if (locations && locations.length > 0) {
-        updateMarkers()
-      }
-    })
+      nextMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: true }), 'top-right')
+
+      nextMap.on('load', () => {
+        if (locations && locations.length > 0) {
+          updateMarkers()
+        }
+      })
+    } catch {
+      setMapError('The map could not be opened in this browser session. Your locations are still available in the list.')
+    }
 
     return () => {
       map.current?.remove()
@@ -173,7 +182,7 @@ export default function Monitor() {
             <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full" />
             <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
           </div>
-          <p className="text-sm font-mono text-gray-500 uppercase tracking-wider">Loading satellite feeds...</p>
+          <p className="text-sm text-slate-400">Loading locations...</p>
         </div>
       </div>
     )
@@ -184,8 +193,8 @@ export default function Monitor() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-          <p className="text-sm font-mono text-yellow-400 mb-2">Mapbox token not configured</p>
-          <p className="text-xs text-gray-500">Set VITE_MAPBOX_TOKEN in your environment</p>
+          <p className="mb-2 text-sm text-yellow-400">Map is not configured</p>
+          <p className="text-xs text-gray-500">Add a Mapbox token to enable the location map.</p>
         </div>
       </div>
     )
@@ -198,7 +207,7 @@ export default function Monitor() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Radio className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Surveillance Sites</h2>
+              <h2 className="text-sm font-semibold text-white">Locations</h2>
             </div>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
@@ -259,7 +268,7 @@ export default function Monitor() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search sites..."
+                placeholder="Search locations..."
                 className="w-full pl-9 pr-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 font-mono"
               />
             </div>
@@ -271,7 +280,7 @@ export default function Monitor() {
             <div className="p-8 text-center">
               <MapPin className="w-8 h-8 text-gray-600 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No locations configured</p>
-              <p className="text-xs text-gray-600 mt-1">Click + to add your first site</p>
+              <p className="text-xs text-gray-600 mt-1">Add your first location to begin monitoring</p>
             </div>
           ) : (
             filteredLocations.map((loc: BackendLocation) => (
@@ -318,7 +327,7 @@ export default function Monitor() {
           <div className="p-4 border-t border-gray-800/50 bg-gray-900/30">
             <div className="flex items-center gap-2 mb-3">
               <Crosshair className="w-4 h-4 text-blue-400" />
-              <h3 className="text-xs font-mono text-gray-400 uppercase tracking-wider">Target Details</h3>
+              <h3 className="text-xs font-medium text-gray-400">Location details</h3>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
@@ -348,7 +357,7 @@ export default function Monitor() {
                     <span className="text-xs font-mono text-blue-400 capitalize">{selectedSchedule.frequency}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-xs text-gray-500">Total Captures</span>
+                    <span className="text-xs text-gray-500">Imagery records</span>
                     <span className="text-xs font-mono text-gray-300">{selectedSchedule.total_captures}</span>
                   </div>
                 </>
@@ -366,7 +375,7 @@ export default function Monitor() {
                 ) : (
                   <>
                     <Satellite className="w-3.5 h-3.5" />
-                    Trigger Capture
+                    Capture imagery
                   </>
                 )}
               </button>
@@ -377,15 +386,24 @@ export default function Monitor() {
 
       <div className="flex-1 relative">
         <div ref={mapContainer} className="absolute inset-0" />
+        {mapError && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/90 p-6">
+            <div className="max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center shadow-2xl">
+              <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-300" />
+              <h2 className="mb-2 text-lg font-semibold text-white">Map unavailable</h2>
+              <p className="text-sm leading-6 text-slate-400">{mapError}</p>
+            </div>
+          </div>
+        )}
 
         <div className="absolute top-4 left-4 z-10 flex gap-2">
           <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-lg px-3 py-2 flex items-center gap-2">
             <Layers className="w-4 h-4 text-blue-400" />
-            <span className="text-xs font-mono text-gray-300">Dark Satellite</span>
+            <span className="text-xs text-gray-300">Map view</span>
           </div>
           <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700/50 rounded-lg px-3 py-2 flex items-center gap-2">
             <Eye className="w-4 h-4 text-green-400" />
-            <span className="text-xs font-mono text-gray-300">{(locations as BackendLocation[] | undefined)?.filter((l: BackendLocation) => l.is_monitored).length ?? 0} Active</span>
+            <span className="text-xs text-gray-300">{(locations as BackendLocation[] | undefined)?.filter((l: BackendLocation) => l.is_monitored).length ?? 0} monitored</span>
           </div>
         </div>
 
@@ -393,7 +411,7 @@ export default function Monitor() {
           <span className="text-xs font-mono text-gray-400">
             {selectedLocData
               ? `${selectedLocData.latitude} / ${selectedLocData.longitude}`
-              : 'SELECT A TARGET'}
+              : 'Select a location'}
           </span>
         </div>
       </div>

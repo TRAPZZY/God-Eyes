@@ -15,13 +15,13 @@ const Settings = lazy(() => import('./components/Settings/Settings'))
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex h-full items-center justify-center">
       <div className="text-center">
-        <div className="relative w-16 h-16 mx-auto mb-4">
+        <div className="relative mx-auto mb-4 h-12 w-12">
           <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full" />
           <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
         </div>
-        <p className="text-sm font-mono text-gray-500 uppercase tracking-wider">Loading...</p>
+        <p className="text-sm text-slate-400">Loading workspace...</p>
       </div>
     </div>
   )
@@ -39,9 +39,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppLayout() {
   return (
-    <div className="flex h-screen bg-gray-950">
+    <div className="flex h-screen bg-[#0b0f17]">
       <Sidebar />
-      <main className="flex-1 overflow-auto relative">
+      <main className="relative flex-1 overflow-auto">
         <Suspense fallback={<PageLoader />}>
           <Outlet />
         </Suspense>
